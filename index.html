@@ -802,8 +802,9 @@
             }
 
             .grid-dashboard {
-                grid-template-columns: 1fr;
-                gap: 16px;
+                grid-template-columns: 1fr 1fr;
+                /* Enable two columns on mobile */
+                gap: 12px;
             }
 
             .analysis-grid {
@@ -811,11 +812,12 @@
             }
 
             .card {
-                padding: 18px;
+                padding: 16px;
             }
 
             .stat-value {
-                font-size: 1.8rem;
+                font-size: 1.5rem;
+                /* Slightly smaller for two columns */
             }
 
             .modal-box {
@@ -833,13 +835,23 @@
         }
 
         @media (max-width: 480px) {
+            .grid-dashboard {
+                gap: 8px;
+                /* Tighten gap for very small screens */
+            }
+
             .stat-value {
-                font-size: 1.6rem;
+                font-size: 1.3rem;
             }
 
             .portfolio-card .stats-row {
                 grid-template-columns: 1fr;
-                gap: 12px;
+                gap: 8px;
+            }
+
+            #stats-cards {
+                grid-template-columns: 1fr;
+                /* Keep header summary big */
             }
         }
 
@@ -2670,7 +2682,7 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
             const todayPct = totalVal > 0 ? (totalTodayChange / (totalVal - totalTodayChange) * 100) : 0;
             const todayPos = totalTodayChange >= 0;
             document.getElementById('stats-cards').innerHTML = `
-        <div class="card" style="display:flex;flex-direction:column;min-height:170px;padding:24px;">
+        <div class="card" style="display:flex;flex-direction:column;min-height:170px;padding:20px;">
             <div style="font-size:0.9rem;color:var(--text-muted);margin-bottom:8px;display:flex;align-items:center;gap:8px">
                 ${metrics.showCash ? '淨資產總值 (含現金)' : '投資組合總值'} <i class="fas fa-wallet" style="font-size:0.8rem;opacity:0.5"></i>
             </div>
@@ -2687,7 +2699,7 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
                 </div>
             </div>
         </div>
-        <div class="card" style="display:flex;flex-direction:column;min-height:170px;padding:24px;">
+        <div class="card" style="display:flex;flex-direction:column;min-height:170px;padding:20px;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
                 <div style="font-size:0.9rem;color:var(--text-muted);display:flex;align-items:center;gap:8px">
                     未實現損益 (股票) <i class="fas fa-chart-line" style="font-size:0.8rem;opacity:0.5"></i>
