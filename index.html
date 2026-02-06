@@ -704,27 +704,32 @@
             }
 
             .mobile-nav {
-                display: flex;
+                display: grid;
+                grid-template-columns: repeat(5, 1fr);
                 position: fixed;
                 bottom: 0;
                 left: 0;
                 width: 100%;
                 height: var(--bottom-nav-height);
-                background: rgba(21, 26, 35, 0.95);
-                backdrop-filter: blur(10px);
-                border-top: var(--border);
+                background: rgba(15, 20, 28, 0.98);
+                backdrop-filter: blur(20px);
+                border-top: 1px solid rgba(255, 255, 255, 0.05);
                 z-index: 1000;
-                justify-content: space-around;
                 align-items: center;
+                padding-bottom: env(safe-area-inset-bottom);
+                box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.5);
             }
 
             .m-nav-item {
                 display: flex;
                 flex-direction: column;
                 align-items: center;
+                justify-content: center;
                 color: var(--text-muted);
-                font-size: 0.75rem;
-                gap: 5px;
+                font-size: 0.65rem;
+                gap: 4px;
+                height: 100%;
+                transition: all 0.2s;
             }
 
             .m-nav-item.active {
@@ -732,28 +737,58 @@
             }
 
             .m-nav-item i {
-                font-size: 1.2rem;
+                font-size: 1.1rem;
+            }
+
+            .m-nav-add {
+                position: relative;
+                transform: translateY(-15px);
+            }
+
+            .m-nav-add-btn {
+                width: 50px;
+                height: 50px;
+                background: var(--primary);
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                font-size: 1.4rem;
+                box-shadow: 0 8px 16px rgba(59, 130, 246, 0.4);
+                border: 4px solid #0f141c;
             }
 
             .page {
-                padding-bottom: 80px;
+                padding: 16px;
+                padding-top: 20px;
+                padding-bottom: 120px;
+            }
+
+            .page-header {
+                margin-bottom: 20px;
+            }
+
+            .page-title h1 {
+                font-size: 1.5rem;
             }
 
             /* Scrollable Table for Mobile */
             .holdings-container {
                 overflow-x: auto;
                 -webkit-overflow-scrolling: touch;
+                border-radius: var(--radius-md);
             }
 
             .table-header,
             .holding-item {
-                min-width: 800px;
-                grid-template-columns: 0.9fr 1.2fr 0.8fr 1.4fr 1.4fr 1.4fr 1fr;
-                /* Reduced first col to 0.9fr */
+                min-width: 850px;
+                grid-template-columns: 100px 1.2fr 0.8fr 1.4fr 1.4fr 1.4fr 1fr;
             }
 
             .table-header {
                 display: grid;
+                font-size: 0.75rem;
             }
 
             /* Hide stock name description on mobile to save space */
@@ -762,45 +797,49 @@
             }
 
             .chart-box {
-                position: relative;
-                height: 300px !important;
-                width: 100%;
-                flex: 1;
-                min-height: 250px;
-                padding: 0;
-                margin: 0;
-                overflow: hidden;
-            }
-
-            .page {
-                padding: 15px;
+                height: 280px !important;
+                margin: 0 -8px;
             }
 
             .grid-dashboard {
                 grid-template-columns: 1fr;
+                gap: 16px;
             }
 
             .analysis-grid {
                 grid-template-columns: 1fr;
             }
-        }
 
-        @media (max-width: 480px) {
+            .card {
+                padding: 18px;
+            }
+
             .stat-value {
                 font-size: 1.8rem;
             }
 
-            .page-title h1 {
-                font-size: 1.5rem;
+            .modal-box {
+                width: 95%;
+                padding: 20px;
+                border-radius: 20px 20px 0 0;
+                position: absolute;
+                bottom: 0;
+                max-height: 85vh;
             }
 
-            .card {
-                padding: 16px;
+            .modal-overlay.open {
+                align-items: flex-end;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .stat-value {
+                font-size: 1.6rem;
             }
 
             .portfolio-card .stats-row {
                 grid-template-columns: 1fr;
-                gap: 8px;
+                gap: 12px;
             }
         }
 
@@ -1088,6 +1127,15 @@
         <div class="sidebar-footer">
             <button class="sidebar-footer-btn" onclick="openSettings()" title="連線設定"><i class="fas fa-cog"></i></button>
         </div>
+    </nav>
+    <nav class="mobile-nav">
+        <div class="m-nav-item active" onclick="navTo('overview')"><i class="fas fa-th-large"></i><span>總覽</span></div>
+        <div class="m-nav-item" onclick="navTo('watchlist-view')"><i class="fas fa-eye"></i><span>看盤</span></div>
+        <div class="m-nav-item m-nav-add" onclick="openAddModal()">
+            <div class="m-nav-add-btn"><i class="fas fa-plus"></i></div>
+        </div>
+        <div class="m-nav-item" onclick="navTo('analysis')"><i class="fas fa-chart-pie"></i><span>分析</span></div>
+        <div class="m-nav-item" onclick="navTo('transactions')"><i class="fas fa-history"></i><span>紀錄</span></div>
     </nav>
     <main class="main-content">
         <!-- Pull to Refresh Indicator -->
@@ -1940,7 +1988,7 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
             }
             if (pageId === 'analysis') {
                 document.querySelector('.nav-menu li:nth-child(3)')?.classList.add('active');
-                document.querySelector('.mobile-nav div:nth-child(3)')?.classList.add('active');
+                document.querySelector('.mobile-nav div:nth-child(4)')?.classList.add('active');
             }
             if (pageId === 'transactions') {
                 document.querySelector('.nav-menu li:nth-child(4)')?.classList.add('active');
