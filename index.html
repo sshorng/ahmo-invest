@@ -2580,7 +2580,8 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
             pCon.innerHTML = '';
             portfolios.sort((a, b) => b.valueTWD - a.valueTWD).forEach(p => {
                 const unr = p.unrealizedTWD || 0, real = p.realized || 0, total = unr + real;
-                const pct = p.costTWD > 0 ? (total / p.costTWD * 100) : 0;
+                // 改為顯示未實現報酬率
+                const pct = p.costTWD > 0 ? (unr / p.costTWD * 100) : 0;
                 const div = document.createElement('div');
                 div.className = `card clickable portfolio-card ${p.includeInTotal ? '' : 'excluded'}`;
                 div.onclick = () => showPortfolioDetail(p.name);
@@ -2607,7 +2608,7 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
                     <div class="stats-row">
                         <div class="stat-item"><label>成本</label><span class="portfolio-value">${fmtTWD(p.costTWD || 0)}</span></div>
                         <div class="stat-item"><label>市值</label><span class="portfolio-value">${fmtTWD(p.valueTWD || 0)}</span></div>
-                        <div class="stat-item"><label>損益</label><span class="portfolio-value ${total >= 0 ? 'trend-up' : 'trend-down'}">${fmtTWD(total)}</span></div>
+                        <div class="stat-item"><label>損益(未)</label><span class="portfolio-value ${unr >= 0 ? 'trend-up' : 'trend-down'}">${fmtTWD(unr)}</span></div>
                         <div class="stat-item"><label>報酬率</label><span class="portfolio-value ${pct >= 0 ? 'trend-up' : 'trend-down'}">${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%</span></div>
                     </div>`;
                 pCon.appendChild(div);
