@@ -1078,22 +1078,24 @@
             </div>
         </div>
         <div id="analysis" class="page">
-            <div class="page-header" style="flex-wrap:wrap;gap:15px;height:auto;">
+            <div class="page-header">
                 <div class="page-title">
                     <h1>資產分析</h1>
                     <p>專業投資績效追蹤</p>
                 </div>
-                <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-                    <select id="analysis-portfolio" class="form-input" style="min-width:120px;"
-                        onchange="renderAnalysis()">
-                        <option value="">全部組合</option>
-                    </select>
+                <div style="display:flex;gap:10px;align-items:center;">
                     <button class="btn" onclick="takeSnapshotNow()" style="white-space:nowrap;"><i
                             class="fas fa-camera"></i> 記錄快照</button>
-                    <button class="btn" onclick="reconstructHistory()"
+                    <button class="btn" onclick="reconstructHistory(event)"
                         style="white-space:nowrap;background:rgba(255,255,255,0.1);"><i class="fas fa-history"></i>
                         重建歷史</button>
                 </div>
+            </div>
+            <div style="margin-bottom:20px;">
+                <select id="analysis-portfolio" class="form-select" style="min-width:200px;"
+                    onchange="renderAnalysis()">
+                    <option value="">全部組合</option>
+                </select>
             </div>
 
             <!-- 統計卡片區 -->
@@ -1499,7 +1501,19 @@
                     </button>
                     <div id="share-result" style="margin-top:15px;display:none;"></div>
                     
-                    <hr style="border:none;border-top:var(--border);margin:25px 0;">
+                <hr style="border:none;border-top:var(--border);margin:25px 0;">
+
+                <h4 style="margin-bottom:15px;color:var(--text-muted);font-size:0.95rem;">
+                    <i class="fas fa-bug"></i> 除錯資訊
+                </h4>
+                <button class="btn btn-sm" onclick="debugPortfolioSettings()" style="width:100%;justify-content:center;margin-bottom:10px;">
+                    檢查投資組合設定讀取狀態
+                </button>
+                <div id="debug-area" style="display:none;margin-bottom:15px;">
+                    <pre id="debug-output" style="background:#111;padding:10px;border-radius:4px;font-size:0.75rem;color:#0f0;overflow:auto;max-height:150px;white-space:pre-wrap;"></pre>
+                </div>
+                    
+                <hr style="border:none;border-top:var(--border);margin:25px 0;">
                     
                     <button class="btn" style="width:100%;justify-content:center;color:var(--danger);" onclick="clearGasUrl()">
                         <i class="fas fa-trash"></i> 清除設定並重置
@@ -1617,6 +1631,25 @@
             navigator.clipboard.writeText(text).then(() => {
                 showToast('已複製到剪貼簿！');
             });
+        }
+
+        function debugPortfolioSettings() {
+            const output = document.getElementById('debug-output');
+            const area = document.getElementById('debug-area');
+            area.style.display = 'block';
+
+            if (!appData || !appData.portfolioSettings) {
+                output.textContent = 'appData 或 portfolioSettings 為空。\n可能是資料尚未載入或讀取失敗。';
+                return;
+            }
+
+            const ps = appData.portfolioSettings;
+            if (ps.length === 0) {
+                output.textContent = 'portfolioSettings 是空陣列 []。\n表示後端回傳了空設定，可能是沒找到工作表或表頭匹配失敗。\n請檢查 Code.gs 中的 SHEET_NAME 設定。';
+                return;
+            }
+
+            output.textContent = JSON.stringify(ps, null, 2);
         }
 
         // ============================================================
@@ -1854,7 +1887,9 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
             document.getElementById('tx-shares').value = '';
             document.getElementById('tx-price').value = '';
             document.getElementById('tx-fee').value = '0';
-            document.getElementById('tx-portfolio').value = '';
+            // 組合預設為第一個
+            const firstPortfolio = (appData.portfolioSettings && appData.portfolioSettings.length > 0) ? appData.portfolioSettings[0].name : '';
+            document.getElementById('tx-portfolio').value = firstPortfolio;
 
             // Cash Fields
             document.getElementById('tx-cash-type').value = 'Deposit';
@@ -2348,14 +2383,43 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
             }
 
             // Total Account Value = Stock Value + Cash
+            // Total Account Value = Stock Value (Filtered) + Cash
             let totalStockVal = 0;
+            let totalStockCost = 0; // 用於計算未實現損益
+
+            // 1. 從 Holdings 計算股票部分，並過濾掉不計入總資產的組合
             Object.values(metrics.holdings).forEach(h => {
-                if (h.ticker !== 'CASH') totalStockVal += h.marketValTWD;
+                if (h.ticker !== 'CASH') {
+                    // 檢查該組合是否計入總資產
+                    const pName = h.portfolio;
+                    const pSettings = metrics.portfolioSummary[pName];
+
+                    if (pSettings && pSettings.includeInTotal !== false) {
+                        totalStockVal += h.marketValTWD;
+                        totalStockCost += h.costTWD;
+                    }
+                }
             });
 
+            // 2. 現金部分 (Cash is always included, unless explicitly separated in future)
+            // 這裡假設所有現金都在 Cash 組合，且預設計入。
+            // 如果使用者想把某個組合的現金也排除，這裡需要更細緻的邏輯。
+            // 目前邏輯：Total Net Asset = Sum of (Included Portfolios) + Global Cash
+
+            // 修正：如果使用者希望某些組合完全獨立(連同現金)，目前的 Global Cash 架構(大水庫)可能無法區分。
+            // 但根據需求，這裡主要修復股票價值被錯誤計入的問題。
+
             metrics.totalAccountVal = totalStockVal + totalCash;
-            // Account PL = Current Net Assets - Net Invested Capital
-            metrics.totalAccountPL = metrics.totalAccountVal - metrics.netDeposit;
+            // Account PL = Current Net Assets - Net Invested Capital (This is tricky with excluded portfolios)
+            // 簡單做法：只顯示計入部分的總損益
+            // Better Metric: Total Market Value - Total Cost (of included items)
+            // NetDeposit is a global number, hard to filter. 
+            // Let's use Sum of [Value - Cost] for PL 
+
+            metrics.totalAccountPL = metrics.totalAccountVal - (totalStockCost + totalCash); // Cash Cost = Cash Value
+
+            // 為了讓 renderOverview 能正確顯示總成本
+            metrics.totalAccountCost = totalStockCost + totalCash;
         }
 
         function updateUI() {
