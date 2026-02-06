@@ -657,23 +657,32 @@
 
         .loader-overlay {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: var(--bg-body);
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            background: rgba(28, 34, 46, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 10px 20px;
+            border-radius: 99px;
+            border: var(--border);
             z-index: 5000;
             display: flex;
-            justify-content: center;
             align-items: center;
-            flex-direction: column;
-            transition: opacity 0.5s;
+            gap: 12px;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            pointer-events: none;
+            /* Allow interaction with background */
+        }
+
+        .loader-overlay.show {
+            transform: translateX(-50%) translateY(0);
         }
 
         .spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid rgba(59, 130, 246, 0.3);
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(59, 130, 246, 0.2);
             border-radius: 50%;
             border-top-color: var(--primary);
             animation: spin 0.8s linear infinite;
@@ -1061,7 +1070,7 @@
 <body>
     <div class="loader-overlay" id="loader">
         <div class="spinner"></div>
-        <div style="margin-top:15px; color:var(--text-muted); font-size:0.9rem;">系統載入中...</div>
+        <div style="color:var(--text-main); font-size:0.85rem; font-weight:500;">載入中...</div>
     </div>
     <nav class="sidebar">
         <div class="logo">
@@ -2116,7 +2125,14 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
             }
         }
         function closeModals() { document.querySelectorAll('.modal-overlay').forEach(el => el.classList.remove('open')); }
-        function setLoading(v) { const l = document.getElementById('loader'); if (v) { l.style.display = 'flex'; l.style.opacity = '1'; } else { l.style.opacity = '0'; setTimeout(() => l.style.display = 'none', 500); } }
+        function setLoading(v) {
+            const l = document.getElementById('loader');
+            if (v) {
+                l.classList.add('show');
+            } else {
+                l.classList.remove('show');
+            }
+        }
 
         function updatePortfolioSelect() {
             // 1. Transaction Modal
