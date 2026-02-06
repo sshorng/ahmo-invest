@@ -802,9 +802,8 @@
             }
 
             .grid-dashboard {
-                grid-template-columns: 1fr 1fr;
-                /* Enable two columns on mobile */
-                gap: 12px;
+                grid-template-columns: 1fr;
+                gap: 16px;
             }
 
             .analysis-grid {
@@ -816,8 +815,7 @@
             }
 
             .stat-value {
-                font-size: 1.5rem;
-                /* Slightly smaller for two columns */
+                font-size: 1.8rem;
             }
 
             .modal-box {
@@ -835,23 +833,18 @@
         }
 
         @media (max-width: 480px) {
-            .grid-dashboard {
-                gap: 8px;
-                /* Tighten gap for very small screens */
-            }
-
             .stat-value {
-                font-size: 1.3rem;
+                font-size: 1.6rem;
             }
 
             .portfolio-card .stats-row {
-                grid-template-columns: 1fr;
-                gap: 8px;
+                grid-template-columns: 1fr 1fr;
+                /* Stay 2 columns inside card */
+                gap: 12px;
             }
 
             #stats-cards {
                 grid-template-columns: 1fr;
-                /* Keep header summary big */
             }
         }
 
