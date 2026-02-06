@@ -783,7 +783,16 @@
             .table-header,
             .holding-item {
                 min-width: 850px;
-                grid-template-columns: 100px 1.2fr 0.8fr 1.4fr 1.4fr 1.4fr 1fr;
+                grid-template-columns: 110px 1.2fr 0.8fr 1.4fr 1.4fr 1.4fr 1fr;
+                padding-left: 0;
+                /* Remove row padding to fix sticky alignment */
+                padding-right: 0;
+            }
+
+            .table-header>div,
+            .holding-item>div {
+                padding: 12px 10px;
+                /* Add cell padding */
             }
 
             .table-header {
@@ -853,13 +862,17 @@
         .holding-item>div:first-child {
             position: sticky;
             left: 0;
-            z-index: 10;
-            background: var(--bg-card);
-            border-right: 1px solid rgba(255, 255, 255, 0.05);
+            z-index: 20;
+            background: #1c222e !important;
+            /* Force solid color */
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 4px 0 8px rgba(0, 0, 0, 0.3);
+            padding-left: 16px !important;
+            /* Restore left padding inside sticky cell */
         }
 
         .holding-item:hover>div:first-child {
-            background: #252b3b;
+            background: #252b3b !important;
         }
 
         /* Toast Notification */
