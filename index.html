@@ -498,11 +498,48 @@
         }
 
         .tx-item {
-            padding: 16px;
+            padding: 14px 16px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.05);
             display: flex;
-            justify-content: space-between;
             align-items: center;
+            gap: 12px;
+            position: relative;
+        }
+
+        .tx-info-left {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 70px;
+        }
+
+        .tx-info-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .tx-info-right {
+            text-align: right;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        @media (max-width: 768px) {
+            .tx-item {
+                padding: 12px;
+                gap: 10px;
+            }
+
+            .tx-info-left {
+                min-width: 60px;
+            }
+
+            .tx-actions {
+                margin-left: 0 !important;
+            }
         }
 
         .tx-item:last-child {
@@ -2945,18 +2982,31 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
                 const typeText = tx.Type === 'Buy' ? '買入' : (tx.Type === 'Sell' ? '賣出' : '股息');
                 const div = document.createElement('div');
                 div.className = 'tx-item';
-                div.innerHTML = `<div style="flex:1">
-                    <span class="tx-badge ${typeClass}">${typeText}</span>
-                    <span style="margin-left:10px;color:var(--text-muted);font-size:0.85rem;">${tx.Date.split('T')[0]}</span>
-                </div>
-                <div style="text-align:right;flex:1">
-                    <div style="font-weight:600">${parseFloat(tx.Shares).toFixed(0)} 股 @ ${fmtByMarket(parseFloat(tx.Price), h.market, true)}</div>
-                    <div style="color:var(--text-muted);font-size:0.85rem">${tx.Portfolio || '未分類'} | 手續費: ${fmtByMarket(parseFloat(tx.Fee) || 0, h.market)}</div>
-                </div>
-                <div class="tx-actions" style="display:flex;gap:8px;margin-left:15px">
-                    <button class="btn" style="padding:6px 10px;font-size:0.8rem" onclick="openEditModal(txCache[${tx.RowIndex}])"><i class="fas fa-edit"></i></button>
-                    <button class="btn" style="padding:6px 10px;font-size:0.8rem;color:var(--danger)" onclick="deleteTx(${tx.RowIndex})"><i class="fas fa-trash"></i></button>
-                </div>`;
+                const date = tx.Date.split('T')[0];
+                const dateParts = date.split('-');
+                const displayDate = `${dateParts[1]}/${dateParts[2]}`;
+                const displayYear = dateParts[0];
+
+                div.innerHTML = `
+                    <div class="tx-info-left">
+                        <span class="tx-badge ${typeClass}">${typeText}</span>
+                        <div style="color:var(--text-muted);font-size:0.75rem;margin-top:2px;">${displayYear}-</div>
+                        <div style="color:var(--text-muted);font-size:0.8rem;font-weight:600;">${displayDate}</div>
+                    </div>
+                    <div class="tx-info-main">
+                        <div style="font-weight:600;font-size:1.05rem;">
+                            ${parseFloat(tx.Shares).toLocaleString()} 股 @ ${fmtByMarket(parseFloat(tx.Price), h.market, true)}
+                        </div>
+                        <div style="color:var(--text-muted);font-size:0.8rem;display:flex;align-items:center;gap:6px">
+                            <span style="opacity:0.7">${tx.Portfolio || '未分類'}</span>
+                            <span>·</span>
+                            <span>手續費: ${fmtByMarket(parseFloat(tx.Fee) || 0, h.market)}</span>
+                        </div>
+                    </div>
+                    <div class="tx-actions" style="margin-left:auto">
+                        <button class="btn" style="padding:8px;border-radius:8px" onclick="openEditModal(txCache[${tx.RowIndex}])"><i class="fas fa-edit"></i></button>
+                        <button class="btn" style="padding:8px;border-radius:8px;color:var(--danger)" onclick="deleteTx(${tx.RowIndex})"><i class="fas fa-trash"></i></button>
+                    </div>`;
                 con.appendChild(div);
                 if (!window.txCache) window.txCache = {};
                 window.txCache[tx.RowIndex] = tx;
@@ -3017,7 +3067,28 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
                 const div = document.createElement('div');
                 div.className = 'tx-item clickable';
                 div.onclick = () => showStockDetail(tx.Ticker, tx.Portfolio || '未分類', 'transactions');
-                div.innerHTML = `<div style="flex:1"><span class="tx-badge ${typeClass}">${typeText}</span><span style="margin-left:10px;font-weight:600">${tx.Ticker}</span><span style="margin-left:8px;color:var(--text-muted);font-size:0.85rem;">${tx.Date.split('T')[0]}</span></div><div style="text-align:right;flex:1"><div>${parseFloat(tx.Shares).toFixed(0)} @ ${fmtByMarket(parseFloat(tx.Price), market, true)}</div><div style="color:var(--text-muted);font-size:0.85rem">${tx.Portfolio || '未分類'}</div></div><div class="tx-actions" style="display:flex;gap:8px;margin-left:15px"><button class="btn" style="padding:6px 10px;font-size:0.8rem" onclick="event.stopPropagation();openEditModal(txCache[${tx.RowIndex}])"><i class="fas fa-edit"></i></button><button class="btn" style="padding:6px 10px;font-size:0.8rem;color:var(--danger)" onclick="event.stopPropagation();deleteTx(${tx.RowIndex})"><i class="fas fa-trash"></i></button></div>`;
+                const date = tx.Date.split('T')[0];
+                const dateParts = date.split('-');
+                const displayDate = `${dateParts[1]}/${dateParts[2]}`;
+                const displayYear = dateParts[0];
+
+                div.innerHTML = `
+                    <div class="tx-info-left">
+                        <span class="tx-badge ${typeClass}">${typeText}</span>
+                        <div style="color:var(--text-muted);font-size:0.75rem;margin-top:2px;">${displayYear}-</div>
+                        <div style="color:var(--text-muted);font-size:0.8rem;font-weight:600;">${displayDate}</div>
+                    </div>
+                    <div class="tx-info-main">
+                        <div style="font-weight:700;font-size:1.1rem;margin-bottom:2px">${tx.Ticker}</div>
+                        <div style="font-size:0.9rem">
+                            ${parseFloat(tx.Shares).toLocaleString()} @ ${fmtByMarket(parseFloat(tx.Price), market, true)}
+                        </div>
+                        <div style="color:var(--text-muted);font-size:0.8rem;margin-top:2px">${tx.Portfolio || '未分類'}</div>
+                    </div>
+                    <div class="tx-actions" style="margin-left:auto">
+                        <button class="btn" style="padding:8px;border-radius:8px" onclick="event.stopPropagation();openEditModal(txCache[${tx.RowIndex}])"><i class="fas fa-edit"></i></button>
+                        <button class="btn" style="padding:8px;border-radius:8px;color:var(--danger)" onclick="event.stopPropagation();deleteTx(${tx.RowIndex})"><i class="fas fa-trash"></i></button>
+                    </div>`;
                 con.appendChild(div);
                 window.txCache[tx.RowIndex] = tx;
             });
