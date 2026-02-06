@@ -1001,6 +1001,60 @@
             word-break: break-all;
             color: var(--primary);
         }
+
+        /* --- Pull to Refresh --- */
+        .ptr-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            pointer-events: none;
+            z-index: 100;
+            opacity: 0;
+            transform: translateY(-100%);
+            transition: opacity 0.3s, transform 0.3s;
+        }
+
+        .ptr-container.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .ptr-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--bg-card);
+            border: var(--border);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+            font-size: 14px;
+            transition: transform 0.2s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+        }
+
+        .ptr-icon i {
+            transition: transform 0.2s;
+        }
+
+        .ptr-container.pulling .ptr-icon i {
+            transform: rotate(var(--ptr-rotate, 0deg));
+        }
+
+        .ptr-container.refreshing .ptr-icon i {
+            animation: spin 0.8s linear infinite;
+        }
+
+        .main-content {
+            transition: transform 0.15s ease-out;
+        }
     </style>
 </head>
 
@@ -1011,8 +1065,8 @@
     </div>
     <nav class="sidebar">
         <div class="logo">
-            <a href="javascript:void(0)" onclick="openSettings()"
-                style="color:inherit;text-decoration:none;display:flex;align-items:center;gap:10px;">
+            <a id="spreadsheet-logo-link" href="#" target="_blank"
+                style="color:inherit;text-decoration:none;display:flex;align-items:center;gap:10px;" title="開啟來源試算表">
                 <i class="fas fa-layer-group"></i> Ahmo Invest
             </a>
         </div>
@@ -1027,6 +1081,13 @@
         </div>
     </nav>
     <main class="main-content">
+        <!-- Pull to Refresh Indicator -->
+        <div id="ptr-indicator" class="ptr-container">
+            <div class="ptr-icon">
+                <i class="fas fa-arrow-down"></i>
+            </div>
+        </div>
+
         <div id="overview" class="page active">
             <div class="page-header">
                 <div class="page-title">
@@ -2114,6 +2175,13 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
                 const json = await apiGet('getData');
                 if (json && json.status === 'success') {
                     appData = json.data || { transactions: [], quotes: {}, exchangeRates: { USD: 32, GBP: 40 }, portfolioSettings: [] };
+
+                    // 更新試算表連結
+                    if (appData.spreadsheetUrl) {
+                        const sLink = document.getElementById('spreadsheet-logo-link');
+                        if (sLink) sLink.href = appData.spreadsheetUrl;
+                    }
+
                     if (!Array.isArray(appData.transactions)) appData.transactions = [];
                     calculateMetrics();
                     updateUI();
@@ -3656,6 +3724,89 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
                 }
             });
         }, 500);
+
+        // --- Pull to Refresh Logic ---
+        function initPullToRefresh() {
+            const container = document.querySelector('.main-content');
+            const ptr = document.getElementById('ptr-indicator');
+            const icon = ptr.querySelector('i');
+
+            let startY = 0;
+            let currentY = 0;
+            let isPulling = false;
+            const threshold = 80;
+            const maxPull = 120;
+
+            container.addEventListener('touchstart', (e) => {
+                // Only enable if we are at the top
+                if (container.scrollTop <= 0) {
+                    startY = e.touches[0].pageY;
+                    isPulling = true;
+                }
+            }, { passive: true });
+
+            container.addEventListener('touchmove', (e) => {
+                if (!isPulling) return;
+
+                currentY = e.touches[0].pageY;
+                const diff = currentY - startY;
+
+                if (diff > 0 && container.scrollTop <= 0) {
+                    // Prevent default to disable native pull-to-refresh on some browsers
+                    if (e.cancelable) e.preventDefault();
+
+                    const pullDistance = Math.min(diff * 0.5, maxPull);
+                    container.style.transform = `translateY(${pullDistance}px)`;
+
+                    ptr.classList.add('active', 'pulling');
+                    const rotation = Math.min(pullDistance / threshold * 180, 180);
+                    ptr.style.setProperty('--ptr-rotate', `${rotation}deg`);
+
+                    if (pullDistance >= threshold) {
+                        icon.className = 'fas fa-arrow-up';
+                    } else {
+                        icon.className = 'fas fa-arrow-down';
+                    }
+                } else {
+                    isPulling = false;
+                    container.style.transform = '';
+                    ptr.classList.remove('active', 'pulling');
+                }
+            }, { passive: false });
+
+            container.addEventListener('touchend', async () => {
+                if (!isPulling) return;
+                isPulling = false;
+
+                const diff = currentY - startY;
+                const pullDistance = Math.min(diff * 0.5, maxPull);
+
+                if (pullDistance >= threshold) {
+                    ptr.classList.add('refreshing');
+                    icon.className = 'fas fa-sync-alt';
+                    container.style.transform = `translateY(${threshold}px)`;
+
+                    try {
+                        // fetchData returns a promise or we can await it if it's async
+                        await fetchData();
+                    } finally {
+                        setTimeout(() => {
+                            container.style.transform = '';
+                            ptr.classList.remove('active', 'pulling', 'refreshing');
+                        }, 300);
+                    }
+                } else {
+                    container.style.transform = '';
+                    ptr.classList.remove('active', 'pulling');
+                }
+
+                startY = 0;
+                currentY = 0;
+            });
+        }
+
+        // Initialize PTR
+        document.addEventListener('DOMContentLoaded', initPullToRefresh);
     </script>
 </body>
 
