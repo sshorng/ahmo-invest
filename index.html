@@ -596,6 +596,67 @@
             display: none;
         }
 
+        /* Custom Checkbox */
+        .custom-checkbox {
+            position: relative;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .custom-checkbox input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+            position: absolute;
+        }
+
+        .checkmark {
+            width: 20px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            color: transparent;
+            font-size: 11px;
+        }
+
+        .custom-checkbox:hover .checkmark {
+            border-color: var(--primary);
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .custom-checkbox input:checked+.checkmark {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+            box-shadow: 0 0 8px var(--primary-glow);
+        }
+
+        /* 批量編輯模式控制 */
+        .tx-checkbox-container {
+            display: none;
+            /* 預設隱藏 */
+            width: 0;
+            overflow: hidden;
+            transition: width 0.3s ease, padding 0.3s ease;
+        }
+
+        body.batch-mode .tx-checkbox-container {
+            display: flex;
+            width: 40px;
+            padding: 0 10px 0 5px;
+        }
+
+        body.batch-mode .tx-item {
+            background: rgba(59, 130, 246, 0.02);
+        }
+
         .modal-overlay {
             position: fixed;
             top: 0;
@@ -1361,6 +1422,14 @@
                     <button class="btn" onclick="clearTxMonth()" style="padding:6px 8px;font-size:0.75rem"
                         title="清除月份"><i class="fas fa-times"></i></button>
                 </div>
+                <div style="display:flex;align-items:center;gap:4px">
+                    <select id="tx-filter-portfolio" class="form-select" style="width:auto;min-width:140px"
+                        onchange="renderAllTransactions()">
+                        <option value="">全部組合</option>
+                    </select>
+                    <button class="btn" onclick="clearTxPortfolio()" style="padding:6px 8px;font-size:0.75rem"
+                        title="清除組合篩選"><i class="fas fa-times"></i></button>
+                </div>
                 <div style="flex:1;min-width:180px;display:flex;align-items:center;gap:4px">
                     <div style="flex:1;position:relative">
                         <i class="fas fa-search"
@@ -1374,6 +1443,38 @@
                 <span id="tx-filter-count" style="color:var(--text-muted);font-size:0.85rem"></span>
                 <button class="btn" onclick="resetTxFilters()" style="padding:8px 12px" title="重設為今年"><i
                         class="fas fa-undo"></i> 今年</button>
+                <button id="btn-batch-toggle" class="btn" onclick="toggleBatchMode()"
+                    style="padding:8px 12px; border-color:var(--primary); color:var(--primary);">
+                    <i class="fas fa-tasks"></i> 批量編輯
+                </button>
+            </div>
+
+            <div id="batch-actions-bar"
+                style="display:none; background:rgba(59,130,246,0.1); border:1px solid var(--primary); padding:12px 16px; border-radius:var(--radius-md); margin-bottom:20px; align-items:center; gap:15px; animation:fadeIn 0.2s ease;">
+                <div style="font-weight:600; color:var(--primary); font-size:0.95rem;">
+                    已選擇 <span id="selected-count">0</span> 筆交易
+                </div>
+                <div style="flex:1; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:0.85rem; color:var(--text-muted);">移動至組合:</span>
+                        <select id="batch-portfolio-target" class="form-select"
+                            style="width:auto; min-width:140px; padding:6px 10px; font-size:0.85rem;">
+                            <!-- 由 JS 動態生成 -->
+                        </select>
+                        <button class="btn primary" style="padding:6px 12px; font-size:0.85rem;"
+                            onclick="batchUpdatePortfolio()">
+                            確認移動
+                        </button>
+                    </div>
+                </div>
+                <button class="btn" style="color:var(--danger); border-color:var(--danger-bg); background:transparent;"
+                    onclick="batchDeleteTx()">
+                    <i class="fas fa-trash"></i> 批量刪除
+                </button>
+                <button class="btn" style="background:transparent; border:none; padding:8px;"
+                    onclick="cancelBatchMode()" title="取消選擇">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
             <div class="holdings-container">
                 <div id="tx-full-list" style="padding:0;"></div>
@@ -2000,7 +2101,24 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
             initGasUrl();
 
             document.getElementById('tx-date').valueAsDate = new Date();
-            fetchData();
+
+            // 從 LocalStorage 恢復上一次的頁面狀態
+            const savedPage = localStorage.getItem('currentPageId');
+            const savedPortfolio = localStorage.getItem('currentPortfolio');
+            const savedStock = localStorage.getItem('currentStock');
+            const savedSource = localStorage.getItem('currentSource');
+
+            fetchData().then(() => {
+                if (savedPage === 'portfolio-detail' && savedPortfolio) {
+                    showPortfolioDetail(savedPortfolio);
+                } else if (savedPage === 'stock-detail' && savedStock) {
+                    showStockDetail(savedStock, savedPortfolio || '未分類', savedSource || '');
+                } else if (savedPage) {
+                    navTo(savedPage);
+                } else {
+                    navTo('overview');
+                }
+            });
 
             // Auto Refresh every 3 minutes
             setInterval(() => {
@@ -2032,6 +2150,15 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
             document.getElementById(pageId).classList.add('active');
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.m-nav-item').forEach(el => el.classList.remove('active'));
+
+            // 儲存導航狀態
+            localStorage.setItem('currentPageId', pageId);
+            // 清除子頁面參數 (除非是子頁面自己設定)
+            if (['overview', 'analysis', 'transactions', 'watchlist-view'].includes(pageId)) {
+                localStorage.removeItem('currentPortfolio');
+                localStorage.removeItem('currentStock');
+                localStorage.removeItem('currentSource');
+            }
 
             if (pageId === 'overview') {
                 document.querySelector('.nav-menu li:nth-child(1)')?.classList.add('active');
@@ -2180,9 +2307,17 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
             document.getElementById('modal-title').textContent = '編輯交易';
             document.getElementById('modal-submit-btn').textContent = '更新';
             document.getElementById('tx-row-index').value = tx.RowIndex;
-            document.getElementById('tx-date').value = tx.Date.split('T')[0];
+
+            // 處理日期格式 (僅保留日期部分)
+            if (tx.Date) {
+                document.getElementById('tx-date').value = tx.Date.split('T')[0];
+            }
+
             document.getElementById('tx-market').value = tx.Market || '美股';
             updateTickerList();
+
+            // 編輯時優先將手續費設為「固定金額」模式，以顯示紀錄中的絕對值
+            setFeeMode('fixed');
 
             // Check based on Type (Deposit/Withdraw are Cash types)
             const isCash = tx.Type === 'Deposit' || tx.Type === 'Withdraw';
@@ -2805,6 +2940,9 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
 
         function showPortfolioDetail(portfolioName) {
             currentPortfolio = portfolioName;
+            localStorage.setItem('currentPageId', 'portfolio-detail');
+            localStorage.setItem('currentPortfolio', portfolioName);
+            localStorage.removeItem('currentStock');
             const stocks = metrics.holdings.filter(h => h.portfolio === portfolioName);
             const pInfo = metrics.portfolioSummary[portfolioName] || {};
             document.getElementById('bc-portfolio').textContent = portfolioName;
@@ -2872,6 +3010,10 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
 
         function showStockDetail(ticker, portfolioName, fromSource) {
             currentStock = ticker; currentPortfolio = portfolioName;
+            localStorage.setItem('currentPageId', 'stock-detail');
+            localStorage.setItem('currentStock', ticker);
+            localStorage.setItem('currentPortfolio', portfolioName);
+            localStorage.setItem('currentSource', fromSource || '');
 
             let h;
             // Support Aggregation for 'ALL'
@@ -3046,18 +3188,33 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
             monthSelect.innerHTML = '<option value="">全部月份</option>' + months.map(m => `<option value="${m}">${monthNames[m]}</option>`).join('');
             if (months.includes(parseInt(currentMonthVal))) monthSelect.value = currentMonthVal;
 
+            // 更新組合選項
+            const portfolioSelect = document.getElementById('tx-filter-portfolio');
+            const currentPortfolioVal = portfolioSelect.value;
+            const portfolios = [...new Set(appData.transactions.map(tx => tx.Portfolio || '未分類'))].sort();
+            portfolioSelect.innerHTML = '<option value="">全部組合</option>' + portfolios.map(p => `<option value="${p}">${p}</option>`).join('');
+            if (portfolios.includes(currentPortfolioVal)) portfolioSelect.value = currentPortfolioVal;
+
             // 取得篩選條件
             const filterMonth = document.getElementById('tx-filter-month').value;
+            const filterPortfolio = document.getElementById('tx-filter-portfolio').value;
             const filterSearch = (document.getElementById('tx-filter-search').value || '').toUpperCase().trim();
 
             // 篩選交易
             let filtered = [...appData.transactions];
             if (filterYear) filtered = filtered.filter(tx => new Date(tx.Date).getFullYear() === parseInt(filterYear));
             if (filterMonth) filtered = filtered.filter(tx => (new Date(tx.Date).getMonth() + 1) === parseInt(filterMonth));
+            if (filterPortfolio) filtered = filtered.filter(tx => (tx.Portfolio || '未分類') === filterPortfolio);
             if (filterSearch) filtered = filtered.filter(tx => tx.Ticker.toUpperCase().includes(filterSearch) || (tx.Portfolio || '').toUpperCase().includes(filterSearch));
 
             // 顯示結果數量
             document.getElementById('tx-filter-count').textContent = `共 ${filtered.length} 筆`;
+
+            // 批量操作列的組合選項
+            const batchPortSelect = document.getElementById('batch-portfolio-target');
+            if (batchPortSelect) {
+                batchPortSelect.innerHTML = (appData.portfolioSettings || []).map(p => `<option value="${p.name}">${p.name}</option>`).join('');
+            }
 
             // 渲染列表
             filtered.sort((a, b) => new Date(b.Date) - new Date(a.Date)).forEach(tx => {
@@ -3066,32 +3223,134 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
                 const market = tx.Market || '美股';
                 const div = document.createElement('div');
                 div.className = 'tx-item clickable';
-                div.onclick = () => showStockDetail(tx.Ticker, tx.Portfolio || '未分類', 'transactions');
+                // 點擊事件區分：勾選框 vs 項目明細
+                div.onclick = (e) => {
+                    if (e.target.closest('.tx-checkbox-container')) return;
+                    showStockDetail(tx.Ticker, tx.Portfolio || '未分類', 'transactions');
+                };
+
                 const date = tx.Date.split('T')[0];
                 const dateParts = date.split('-');
                 const displayDate = `${dateParts[1]}/${dateParts[2]}`;
                 const displayYear = dateParts[0];
 
                 div.innerHTML = `
-                    <div class="tx-info-left">
+                    <div class="tx-checkbox-container" onclick="event.stopPropagation()">
+                        <label class="custom-checkbox">
+                            <input type="checkbox" class="tx-batch-check" data-row-index="${tx.RowIndex}" onchange="updateBatchBar()">
+                            <span class="checkmark"><i class="fas fa-check"></i></span>
+                        </label>
+                    </div>
+                    <div class="tx-info-left" style="pointer-events:none">
                         <span class="tx-badge ${typeClass}">${typeText}</span>
                         <div style="color:var(--text-muted);font-size:0.75rem;margin-top:2px;">${displayYear}-</div>
                         <div style="color:var(--text-muted);font-size:0.8rem;font-weight:600;">${displayDate}</div>
                     </div>
-                    <div class="tx-info-main">
+                    <div class="tx-info-main" style="pointer-events:none">
                         <div style="font-weight:700;font-size:1.1rem;margin-bottom:2px">${tx.Ticker}</div>
                         <div style="font-size:0.9rem">
                             ${parseFloat(tx.Shares).toLocaleString()} @ ${fmtByMarket(parseFloat(tx.Price), market, true)}
                         </div>
                         <div style="color:var(--text-muted);font-size:0.8rem;margin-top:2px">${tx.Portfolio || '未分類'}</div>
                     </div>
-                    <div class="tx-actions" style="margin-left:auto">
+                    <div class="tx-actions" style="margin-left:auto; display:flex; gap:8px;">
                         <button class="btn" style="padding:8px;border-radius:8px" onclick="event.stopPropagation();openEditModal(txCache[${tx.RowIndex}])"><i class="fas fa-edit"></i></button>
                         <button class="btn" style="padding:8px;border-radius:8px;color:var(--danger)" onclick="event.stopPropagation();deleteTx(${tx.RowIndex})"><i class="fas fa-trash"></i></button>
                     </div>`;
                 con.appendChild(div);
                 window.txCache[tx.RowIndex] = tx;
             });
+            updateBatchBar(); // 初始狀態同步
+        }
+
+        function toggleBatchMode() {
+            const isBatch = document.body.classList.toggle('batch-mode');
+            const btn = document.getElementById('btn-batch-toggle');
+
+            if (isBatch) {
+                btn.innerHTML = '<i class="fas fa-times"></i> 結束批量';
+                btn.classList.add('primary'); // Reuse primary style for emphasis when active
+                btn.style.borderColor = 'var(--primary)';
+            } else {
+                btn.innerHTML = '<i class="fas fa-tasks"></i> 批量編輯';
+                btn.classList.remove('primary');
+                btn.style.background = 'transparent';
+                btn.style.color = 'var(--primary)';
+                cancelBatchMode();
+            }
+        }
+
+        function updateBatchBar() {
+            const checks = document.querySelectorAll('.tx-batch-check:checked');
+            const bar = document.getElementById('batch-actions-bar');
+            const countLabel = document.getElementById('selected-count');
+
+            if (checks.length > 0) {
+                bar.style.display = 'flex';
+                countLabel.textContent = checks.length;
+            } else {
+                bar.style.display = 'none';
+            }
+        }
+
+        function cancelBatchMode() {
+            document.querySelectorAll('.tx-batch-check').forEach(c => c.checked = false);
+            updateBatchBar();
+        }
+
+        async function batchUpdatePortfolio() {
+            const target = document.getElementById('batch-portfolio-target').value;
+            const checks = document.querySelectorAll('.tx-batch-check:checked');
+            const rowIndices = Array.from(checks).map(c => parseInt(c.dataset.rowIndex));
+
+            const result = await showModal('確認批量移動',
+                `確定要將選擇的 ${rowIndices.length} 筆交易移動至組合『${target}』嗎？`,
+                'info',
+                [{ text: '取消', primary: false }, { text: '確認移動', primary: true }]
+            );
+            if (result !== 1) return;
+
+            setLoading(true);
+            try {
+                const r = await apiPost('batchUpdateTransactions', { rowIndices, portfolio: target });
+                if (r.status === 'success') {
+                    showToast('批量更新成功');
+                    await fetchData();
+                } else {
+                    showModal('更新失敗', r.message, 'error');
+                }
+            } catch (e) {
+                showModal('錯誤', e.message, 'error');
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        async function batchDeleteTx() {
+            const checks = document.querySelectorAll('.tx-batch-check:checked');
+            const rowIndices = Array.from(checks).map(c => parseInt(c.dataset.rowIndex));
+
+            const result = await showModal('確認批量刪除',
+                `確定要刪除這 ${rowIndices.length} 筆交易嗎？此操作無法還原。`,
+                'warning',
+                [{ text: '取消', primary: false }, { text: '確認刪除', primary: true }]
+            );
+            if (result !== 1) return;
+
+            setLoading(true);
+            try {
+                const r = await apiPost('batchDeleteTransactions', { rowIndices });
+                if (r.status === 'success') {
+                    showToast('批量刪除成功');
+                    await fetchData();
+                } else {
+                    showModal('刪除失敗', r.message, 'error');
+                }
+            } catch (e) {
+                showModal('錯誤', e.message, 'error');
+            } finally {
+                setLoading(false);
+            }
         }
 
         let txFilterInitialized = false;
@@ -3099,11 +3358,13 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
 
         function clearTxYear() { document.getElementById('tx-filter-year').value = ''; renderAllTransactions(); }
         function clearTxMonth() { document.getElementById('tx-filter-month').value = ''; renderAllTransactions(); }
+        function clearTxPortfolio() { document.getElementById('tx-filter-portfolio').value = ''; renderAllTransactions(); }
         function clearTxSearch() { document.getElementById('tx-filter-search').value = ''; renderAllTransactions(); }
         function resetTxFilters() {
             const now = new Date();
             document.getElementById('tx-filter-year').value = now.getFullYear();
-            document.getElementById('tx-filter-month').value = ''; // 全部月份
+            document.getElementById('tx-filter-month').value = '';
+            document.getElementById('tx-filter-portfolio').value = '';
             document.getElementById('tx-filter-search').value = '';
             renderAllTransactions();
         }
