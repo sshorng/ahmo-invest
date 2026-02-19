@@ -2379,7 +2379,6 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
             }
 
             // 2. Analysis Chart
-            // 2. Analysis Chart
             const anaSel = document.getElementById('analysis-portfolio');
             if (anaSel) {
                 const oldVal = anaSel.value;
@@ -2405,7 +2404,10 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
             datalist.innerHTML = tickers.map(t => `<option value="${t}">`).join('');
         }
 
+        let _isFetching = false;
         async function fetchData(isAuto = false) {
+            if (_isFetching) return; // 防抖：避免重複呼叫
+            _isFetching = true;
             if (!isAuto) setLoading(true);
 
             // 檢查是否已設定 GAS URL (獨立模式) 或有 google.script.run (內嵌模式)
@@ -2440,6 +2442,7 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
                 if (!isAuto) showModal('連線錯誤', e.message, 'error');
             } finally {
                 setLoading(false);
+                _isFetching = false;
             }
         }
 
@@ -2503,14 +2506,17 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
             }
         }
 
-        function fmtTWD(n, isPrice = false) { return 'NT$' + new Intl.NumberFormat('zh-TW', { maximumFractionDigits: isPrice ? 2 : 0, minimumFractionDigits: isPrice ? 2 : 0 }).format(n); }
+        // 快取 NumberFormat 實例，避免每次呼叫重建
+        const _nfTWD0 = new Intl.NumberFormat('zh-TW', { maximumFractionDigits: 0, minimumFractionDigits: 0 });
+        const _nfTWD2 = new Intl.NumberFormat('zh-TW', { maximumFractionDigits: 2, minimumFractionDigits: 2 });
+        const _nfUSD2 = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        function fmtTWD(n, isPrice = false) { return 'NT$' + (isPrice ? _nfTWD2 : _nfTWD0).format(n); }
 
         function fmtUSD(n) {
-            const usdVal = '$' + new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+            const usdVal = '$' + _nfUSD2.format(n);
             const rate = (appData.exchangeRates && appData.exchangeRates.USD) ? appData.exchangeRates.USD : 32;
-            const twdVal = 'NT$' + new Intl.NumberFormat('zh-TW', { maximumFractionDigits: 0 }).format(n * rate);
-            // Return interactive span
-            // We use onclick attribute directly for simplicity given the dynamic render nature
+            const twdVal = 'NT$' + _nfTWD0.format(n * rate);
             return `<span class="cur-toggle" onclick="event.stopPropagation(); toggleCur(this)" data-usd="${usdVal}" data-twd="${twdVal}" data-mode="usd">${usdVal}</span>`;
         }
 
@@ -2753,6 +2759,7 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
             const idxContainer = document.getElementById('market-indices');
             if (idxContainer) {
                 idxContainer.innerHTML = '';
+                const idxFragment = document.createDocumentFragment();
                 // Use dynamic indices from backend if available, otherwise fallback (or empty)
                 const indices = appData.marketIndices || [];
 
@@ -2779,14 +2786,15 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
                          ${isUp ? '+' : ''}${change.toFixed(2)} (${isUp ? '+' : ''}${pct.toFixed(2)}%)
                       </div>
                    `;
-                    idxContainer.appendChild(card);
+                    idxFragment.appendChild(card);
                 });
+                idxContainer.appendChild(idxFragment);
             }
 
             // 2. Portfolio Watchlist
             const wlContainer = document.getElementById('wl-holdings');
             if (wlContainer) {
-                let activeHoldings = metrics.holdings.filter(h => h.shares > 0.001);
+                let activeHoldings = metrics.holdings.filter(h => h.shares > 0.001 && h.ticker !== 'CASH');
 
                 const tickerMap = {};
                 activeHoldings.forEach(h => {
@@ -2799,6 +2807,7 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
                     .map(x => x.ticker);
 
                 wlContainer.innerHTML = '';
+                const wlFragment = document.createDocumentFragment();
 
                 sortedTickers.forEach(t => {
                     const h = metrics.holdings.find(x => x.ticker === t);
@@ -2815,14 +2824,13 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
                     const tColor = isUp ? 'trend-up' : 'trend-down';
 
                     const card = document.createElement('div');
-                    card.className = 'card clickable'; // Reusing card class for style
+                    card.className = 'card clickable';
                     card.onclick = () => showStockDetail(t, 'ALL', 'watchlist');
                     card.style.padding = '15px';
                     card.style.display = 'flex';
                     card.style.flexDirection = 'column';
                     card.style.gap = '8px';
 
-                    // Card Layout
                     card.innerHTML = `
                         <div style="display:flex;justify-content:space-between;align-items:flex-start">
                              <div style="font-weight:600;font-size:1rem">${t}</div>
@@ -2836,8 +2844,9 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
                              </div>
                         </div>
                     `;
-                    wlContainer.appendChild(card);
+                    wlFragment.appendChild(card);
                 });
+                wlContainer.appendChild(wlFragment);
             }
         }
 
@@ -2892,7 +2901,7 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
         </div>`;
             const pCon = document.getElementById('portfolio-list');
             pCon.innerHTML = '';
-            portfolios.sort((a, b) => b.valueTWD - a.valueTWD).forEach(p => {
+            [...portfolios].sort((a, b) => b.valueTWD - a.valueTWD).forEach(p => {
                 const unr = p.unrealizedTWD || 0, real = p.realized || 0, total = unr + real;
                 // 改為顯示未實現報酬率
                 const pct = p.costTWD > 0 ? (unr / p.costTWD * 100) : 0;
@@ -2970,8 +2979,7 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
         </div>`;
             const con = document.getElementById('pd-holdings');
             con.innerHTML = '';
-            stocks.sort((a, b) => b.marketValTWD - a.marketValTWD);
-            stocks.forEach(h => {
+            [...stocks].sort((a, b) => b.marketValTWD - a.marketValTWD).forEach(h => {
                 const rates = appData.exchangeRates || { USD: 32, GBP: 40 };
                 const rate = h.market.includes('美') ? rates.USD : (h.market.includes('英') ? rates.USD : 1);
                 const curPrice = h.curPrice;
@@ -3110,6 +3118,8 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
                 </div>`;
             const con = document.getElementById('sd-transactions');
             con.innerHTML = '';
+            if (!window.txCache) window.txCache = {};
+            const sdFragment = document.createDocumentFragment();
             [...h.txHistory].sort((a, b) => new Date(b.Date) - new Date(a.Date)).forEach(tx => {
                 const typeClass = tx.Type === 'Buy' ? 'buy' : (tx.Type === 'Sell' ? 'sell' : 'dividend');
                 const typeText = tx.Type === 'Buy' ? '買入' : (tx.Type === 'Sell' ? '賣出' : '股息');
@@ -3140,10 +3150,10 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
                         <button class="btn" style="padding:8px;border-radius:8px" onclick="openEditModal(txCache[${tx.RowIndex}])"><i class="fas fa-edit"></i></button>
                         <button class="btn" style="padding:8px;border-radius:8px;color:var(--danger)" onclick="deleteTx(${tx.RowIndex})"><i class="fas fa-trash"></i></button>
                     </div>`;
-                con.appendChild(div);
-                if (!window.txCache) window.txCache = {};
+                sdFragment.appendChild(div);
                 window.txCache[tx.RowIndex] = tx;
             });
+            con.appendChild(sdFragment);
             navTo('stock-detail');
         }
 
