@@ -1244,15 +1244,7 @@
             <button class="sidebar-footer-btn" onclick="openSettings()" title="連線設定"><i class="fas fa-cog"></i></button>
         </div>
     </nav>
-    <nav class="mobile-nav">
-        <div class="m-nav-item active" onclick="navTo('overview')"><i class="fas fa-th-large"></i><span>總覽</span></div>
-        <div class="m-nav-item" onclick="navTo('watchlist-view')"><i class="fas fa-eye"></i><span>看盤</span></div>
-        <div class="m-nav-item m-nav-add" onclick="openAddModal()">
-            <div class="m-nav-add-btn"><i class="fas fa-plus"></i></div>
-        </div>
-        <div class="m-nav-item" onclick="navTo('analysis')"><i class="fas fa-chart-pie"></i><span>分析</span></div>
-        <div class="m-nav-item" onclick="navTo('transactions')"><i class="fas fa-history"></i><span>紀錄</span></div>
-    </nav>
+
     <main class="main-content">
         <!-- Pull to Refresh Indicator -->
         <div id="ptr-indicator" class="ptr-container">
@@ -1593,11 +1585,11 @@
                         <div id="fee-percent-input" style="display:none">
                             <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
                                 <button type="button" class="btn fee-preset"
-                                    onclick="applyFeePercent(0.02565)">1.8折</button>
+                                    onclick="applyFeePercent(0.02565, event)">1.8折</button>
                                 <button type="button" class="btn fee-preset"
-                                    onclick="applyFeePercent(0.08)">0.08%</button>
+                                    onclick="applyFeePercent(0.08, event)">0.08%</button>
                                 <button type="button" class="btn fee-preset"
-                                    onclick="applyFeePercent(0.15)">0.15%</button>
+                                    onclick="applyFeePercent(0.15, event)">0.15%</button>
                             </div>
                             <div style="display:flex;gap:8px;align-items:center">
                                 <input type="number" id="tx-fee-percent" step="any" class="form-input" value="0.02565"
@@ -2193,7 +2185,7 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
             document.getElementById('tx-portfolio').value = firstPortfolio;
 
             // Cash Fields
-            document.getElementById('tx-cash-type').value = 'Deposit';
+            document.getElementById('tx-cash-type').value = '入金';
             document.getElementById('tx-cash-amount').value = '';
 
             document.getElementById('modal-title').textContent = '新增交易';
@@ -2237,10 +2229,10 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
             document.getElementById('fee-percent-input').style.display = mode === 'percent' ? 'block' : 'none';
             if (mode === 'percent') updateFeeCalculation();
         }
-        function applyFeePercent(pct) {
+        function applyFeePercent(pct, e) {
             document.getElementById('tx-fee-percent').value = pct;
             document.querySelectorAll('.fee-preset').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
+            if (e && e.target) e.target.classList.add('active');
             updateFeeCalculation();
         }
         function applyCustomFeePercent() {
@@ -2512,7 +2504,6 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
         }
 
         function fmtTWD(n, isPrice = false) { return 'NT$' + new Intl.NumberFormat('zh-TW', { maximumFractionDigits: isPrice ? 2 : 0, minimumFractionDigits: isPrice ? 2 : 0 }).format(n); }
-        function fmtTWD(n, isPrice = false) { return 'NT$' + new Intl.NumberFormat('zh-TW', { maximumFractionDigits: isPrice ? 2 : 0, minimumFractionDigits: isPrice ? 2 : 0 }).format(n); }
 
         function fmtUSD(n) {
             const usdVal = '$' + new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
@@ -2548,9 +2539,9 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
             if (raw.length === 0) { metrics.holdings = []; metrics.realizedLog = {}; metrics.portfolioSummary = {}; return; }
 
             let holdingsMap = {}, realizedLog = {}, portfolioSummary = {};
-            raw.sort((a, b) => new Date(a.Date) - new Date(b.Date));
+            const sorted = [...raw].sort((a, b) => new Date(a.Date) - new Date(b.Date));
 
-            raw.forEach(tx => {
+            sorted.forEach(tx => {
                 const t = tx.Ticker, market = tx.Market || '美股', portfolio = tx.Portfolio || '未分類';
                 const key = `${portfolio}|${t}`;
                 if (!holdingsMap[key]) holdingsMap[key] = { ticker: t, shares: 0, costLocal: 0, costTWD: 0, realized: 0, history: [], market, portfolio };
@@ -3161,7 +3152,7 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
         function renderAllTransactions() {
             const con = document.getElementById('tx-full-list');
             con.innerHTML = '';
-            if (!window.txCache) window.txCache = {};
+            window.txCache = {}; // 每次重置，避免記憶體洩漏
 
             // 更新年份選項
             const yearSelect = document.getElementById('tx-filter-year');
@@ -3216,7 +3207,8 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
                 batchPortSelect.innerHTML = (appData.portfolioSettings || []).map(p => `<option value="${p.name}">${p.name}</option>`).join('');
             }
 
-            // 渲染列表
+            // 渲染列表 — 使用 DocumentFragment 減少 DOM 重排
+            const fragment = document.createDocumentFragment();
             filtered.sort((a, b) => new Date(b.Date) - new Date(a.Date)).forEach(tx => {
                 const typeClass = tx.Type === 'Buy' ? 'buy' : (tx.Type === 'Sell' ? 'sell' : 'dividend');
                 const typeText = tx.Type === 'Buy' ? '買入' : (tx.Type === 'Sell' ? '賣出' : '股息');
@@ -3257,9 +3249,10 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
                         <button class="btn" style="padding:8px;border-radius:8px" onclick="event.stopPropagation();openEditModal(txCache[${tx.RowIndex}])"><i class="fas fa-edit"></i></button>
                         <button class="btn" style="padding:8px;border-radius:8px;color:var(--danger)" onclick="event.stopPropagation();deleteTx(${tx.RowIndex})"><i class="fas fa-trash"></i></button>
                     </div>`;
-                con.appendChild(div);
+                fragment.appendChild(div);
                 window.txCache[tx.RowIndex] = tx;
             });
+            con.appendChild(fragment);
             updateBatchBar(); // 初始狀態同步
         }
 
@@ -4095,49 +4088,37 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
             });
         }
 
+
         document.addEventListener('DOMContentLoaded', () => {
+            // 圖表尺寸鎖定
             lockCharts();
             window.addEventListener('resize', lockCharts);
-            // Multi-stage locking
             setTimeout(lockCharts, 500);
             setTimeout(lockCharts, 2000);
+
+            // Pull-to-Refresh 初始化
+            initPullToRefresh();
+
+            // ResizeObserver 監控圖表容器尺寸變化
+            if (typeof ResizeObserver !== 'undefined') {
+                const chartResizeObserver = new ResizeObserver(entries => {
+                    entries.forEach(entry => {
+                        const box = entry.target;
+                        const canvas = box.querySelector('canvas');
+                        if (!canvas) return;
+                        const isMobile = window.innerWidth <= 768;
+                        const targetH = isMobile ? 280 : 350;
+                        if (box.offsetHeight !== targetH) {
+                            box.style.height = targetH + 'px';
+                            box.style.maxHeight = targetH + 'px';
+                        }
+                        if (canvas.style.height !== '100%') canvas.style.height = '100%';
+                        if (canvas.style.position !== 'absolute') canvas.style.position = 'absolute';
+                    });
+                });
+                document.querySelectorAll('.chart-box').forEach(box => chartResizeObserver.observe(box));
+            }
         });
-    </script>
-    <style>
-        /* NUCLEAR OPTION: Clip Path */
-        .chart-box {
-            overflow: hidden !important;
-            clip-path: inset(0 0 0 0) !important;
-            -webkit-clip-path: inset(0 0 0 0) !important;
-            position: relative !important;
-            z-index: 10 !important;
-        }
-    </style>
-    <script>
-        // Brute Force Dimensions every 500ms
-        setInterval(() => {
-            document.querySelectorAll('.chart-box').forEach(box => {
-                const isMobile = window.innerWidth <= 768;
-                const targetH = isMobile ? 280 : 350;
-
-                // 1. Force Box Height
-                if (box.offsetHeight !== targetH) {
-                    box.style.height = targetH + 'px';
-                    box.style.maxHeight = targetH + 'px';
-                }
-
-                // 2. Force Canvas Height Attribute
-                const canvas = box.querySelector('canvas');
-                if (canvas) {
-                    // Check style height
-                    if (canvas.style.height !== '100%') canvas.style.height = '100%';
-                    if (canvas.style.position !== 'absolute') canvas.style.position = 'absolute';
-
-                    // Crucial: If internal height attribute is excessively large, clamp it
-                    // (Chart.js usually manages this, but we force specific logic if it fails)
-                }
-            });
-        }, 500);
 
         // --- Pull to Refresh Logic ---
         function initPullToRefresh() {
@@ -4152,7 +4133,6 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
             const maxPull = 120;
 
             container.addEventListener('touchstart', (e) => {
-                // Only enable if we are at the top
                 if (container.scrollTop <= 0) {
                     startY = e.touches[0].pageY;
                     isPulling = true;
@@ -4161,14 +4141,11 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
 
             container.addEventListener('touchmove', (e) => {
                 if (!isPulling) return;
-
                 currentY = e.touches[0].pageY;
                 const diff = currentY - startY;
 
                 if (diff > 0 && container.scrollTop <= 0) {
-                    // Prevent default to disable native pull-to-refresh on some browsers
                     if (e.cancelable) e.preventDefault();
-
                     const pullDistance = Math.min(diff * 0.5, maxPull);
                     container.style.transform = `translateY(${pullDistance}px)`;
 
@@ -4201,7 +4178,6 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
                     container.style.transform = `translateY(${threshold}px)`;
 
                     try {
-                        // fetchData returns a promise or we can await it if it's async
                         await fetchData();
                     } finally {
                         setTimeout(() => {
@@ -4218,9 +4194,6 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
                 currentY = 0;
             });
         }
-
-        // Initialize PTR
-        document.addEventListener('DOMContentLoaded', initPullToRefresh);
     </script>
 </body>
 
