@@ -1969,37 +1969,6 @@
             };
         }
 
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        function getGasCode() {
-            // 完整的 GAS 後端程式碼
-            return `// ZenFolio Config - 工作表名稱 (繁體中文在地化)
-const SHEET_NAME = '交易紀錄';
-const MARKET_SHEET_NAME = '市場資料';
-const SETTINGS_SHEET_NAME = '系統設定';
-const PORTFOLIO_SETTINGS_SHEET = '投資組合設定';
-const SNAPSHOT_SHEET_NAME = '歷史快照';
-
-// ====== 請將完整的 Code.gs 內容複製到 Google Apps Script ======
-// 
-// 由於程式碼較長，請從 GitHub 或開發者取得完整版本。
-// 
-// 部署步驟：
-// 1. 執行身分：我自己
-// 2. 誰可以存取：任何人
-// ============================================================`;
-        }
-
-        function copyGasCode() {
-            const code = getGasCode();
-            navigator.clipboard.writeText(code).then(() => {
-                showToast('GAS 程式碼已複製！');
-            });
-        }
 
         // ============================================================
         // API 呼叫封裝 (支援 GAS Web App + 傳統 google.script.run)
@@ -3804,13 +3773,10 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
             return rate;
         }
 
-        function renderAnalysis() {
-            // Helper for compact currency (Short Format)
-            // Helper for compact currency (Short Format) - Modified: No abbreviation per user request
-            const fmtS = (n) => {
-                return 'NT$' + Math.round(n).toLocaleString();
-            };
+        // 簡潔金額格式（全域）
+        const fmtS = (n) => 'NT$' + Math.round(n).toLocaleString();
 
+        function renderAnalysis() {
             Chart.defaults.color = '#94a3b8';
             Chart.defaults.font.family = 'Outfit';
 
@@ -3888,8 +3854,7 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
                 const cashflows = [];
                 const dates = [];
 
-                transactions.sort((a, b) => new Date(a.Date) - new Date(b.Date));
-                transactions.forEach(tx => {
+                [...transactions].sort((a, b) => new Date(a.Date) - new Date(b.Date)).forEach(tx => {
                     const d = new Date(tx.Date);
                     const shares = parseFloat(tx.Shares) || 0;
                     const price = parseFloat(tx.Price) || 0;
@@ -4103,8 +4068,6 @@ const SNAPSHOT_SHEET_NAME = '歷史快照';
             // 圖表尺寸鎖定
             lockCharts();
             window.addEventListener('resize', lockCharts);
-            setTimeout(lockCharts, 500);
-            setTimeout(lockCharts, 2000);
 
             // Pull-to-Refresh 初始化
             initPullToRefresh();
