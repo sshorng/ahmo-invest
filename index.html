@@ -91,6 +91,7 @@
             font-weight: 700;
             background: linear-gradient(to right, var(--primary), var(--accent));
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
             margin-bottom: 40px;
             display: flex;
@@ -2555,8 +2556,7 @@
                     portfolioSummary[h.portfolio].todayChangeTWD += todayChangeTWD;
                 }
                 portfolioSummary[h.portfolio].realized += h.realized;
-
-                return { ticker: h.ticker, name: q.name, shares: h.shares, curPrice, avgCostLocal: h.shares > 0 ? h.costLocal / h.shares : 0, costTWD: h.costTWD, marketValLocal, marketValTWD, unrealizedTWD, realized: h.realized, market: h.market, portfolio: h.portfolio, txHistory: h.history, change, changePct: curPrice > 0 ? (change / (curPrice - change) * 100) : 0, todayChangeTWD };
+                return { ticker: h.ticker, name: q.name, shares: h.shares, curPrice, costLocal: h.costLocal, avgCostLocal: h.shares > 0 ? h.costLocal / h.shares : 0, costTWD: h.costTWD, marketValLocal, marketValTWD, unrealizedTWD, realized: h.realized, market: h.market, portfolio: h.portfolio, txHistory: h.history, change, changePct: curPrice > 0 ? (change / (curPrice - change) * 100) : 0, todayChangeTWD };
             }).filter(h => h.shares > 0.001 || h.realized !== 0);
 
             Object.values(portfolioSummary).forEach(p => { p.unrealizedTWD = p.valueTWD - p.costTWD; p.stockCount = p.stocks.size; delete p.stocks; p.todayChangePct = p.valueTWD > 0 ? (p.todayChangeTWD / (p.valueTWD - (p.todayChangeTWD || 0)) * 100) : 0; });
