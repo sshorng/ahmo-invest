@@ -3482,9 +3482,50 @@
                 if (r.status === 'success') {
                     snapshotData = r.data || [];
                     renderHistoryChart();
+
+                    // === 自動校準：若最新快照不是今天，靜默儲存今日數據 ===
+                    autoCalibrateTodaySnapshot();
                 }
             } catch (e) {
                 console.error('載入快照失敗:', e);
+            }
+        }
+
+        async function autoCalibrateTodaySnapshot() {
+            if (!metrics || !metrics.portfolioSummary) return;
+            const todayStr = new Date().toISOString().substring(0, 10);
+
+            // 檢查最新快照是否已是今天
+            const sorted = [...snapshotData].sort((a, b) => new Date(b.date) - new Date(a.date));
+            if (sorted.length > 0 && sorted[0].date === todayStr) return; // 已有今日快照
+
+            // 靜默存入今日快照
+            let totalVal = 0, totalCost = 0;
+            const portfolios = {};
+            Object.values(metrics.portfolioSummary).forEach(p => {
+                if (p.includeInTotal) {
+                    totalVal += p.valueTWD || 0;
+                    totalCost += p.costTWD || 0;
+                }
+                portfolios[p.name] = { name: p.name, valueTWD: p.valueTWD || 0, costTWD: p.costTWD || 0 };
+            });
+
+            if (totalVal === 0) return; // 沒有數據就不存
+
+            try {
+                await apiPost('saveSnapshotFromFrontend', {
+                    totalValue: totalVal, totalCost: totalCost,
+                    totalPL: totalVal - totalCost, portfolios: portfolios
+                });
+                console.log('[AutoCalibrate] 已自動儲存今日快照');
+                // 重新載入以反映新數據
+                const r2 = await apiGet('getSnapshots');
+                if (r2.status === 'success') {
+                    snapshotData = r2.data || [];
+                    renderHistoryChart();
+                }
+            } catch (e) {
+                console.warn('[AutoCalibrate] 自動快照失敗:', e);
             }
         }
 
@@ -3521,6 +3562,30 @@
                 const cutoff = new Date();
                 cutoff.setDate(cutoff.getDate() - currentTimeRange);
                 filtered = filtered.filter(s => new Date(s.date) >= cutoff);
+            }
+
+            // === 即時校準：注入今日虛擬數據點 ===
+            if (metrics && metrics.portfolioSummary) {
+                const todayStr = new Date().toISOString().substring(0, 10);
+                const hasToday = filtered.some(s => s.date === todayStr);
+                if (!hasToday) {
+                    // 從即時 metrics 建立今日數據點
+                    const todayPortfolios = {};
+                    Object.values(metrics.portfolioSummary).forEach(p => {
+                        todayPortfolios[p.name] = { name: p.name, valueTWD: p.valueTWD || 0, costTWD: p.costTWD || 0 };
+                    });
+                    let todayTotal = 0, todayCost = 0;
+                    Object.values(metrics.portfolioSummary).forEach(p => {
+                        if (p.includeInTotal) { todayTotal += p.valueTWD || 0; todayCost += p.costTWD || 0; }
+                    });
+                    filtered.push({
+                        date: todayStr,
+                        totalValue: todayTotal,
+                        totalCost: todayCost,
+                        totalPL: todayTotal - todayCost,
+                        portfolios: todayPortfolios
+                    });
+                }
             }
 
             if (filtered.length === 0) {
