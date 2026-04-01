@@ -2598,9 +2598,12 @@
                 }
 
                 // 判斷是否為「新交易」
+                // 修正：使用日期字串比較以正確排除快照日當天及其之前的交易
                 let isNewTx = true;
-                if (useSnapshotBase && txDate <= snapDate) {
-                    isNewTx = false;
+                if (useSnapshotBase) {
+                    const txDateStr = tx.Date.substring(0, 10);
+                    const snapDateStr = snapDate.toISOString().substring(0, 10);
+                    if (txDateStr <= snapDateStr) isNewTx = false;
                 }
 
                 if (isNewTx) {
@@ -2644,8 +2647,9 @@
                 }
                 const pSum = metrics.portfolioSummary[cashPortfolioName];
                 pSum.valueTWD += totalCash;
-                // 現金成本為0(資本注入,非投資成本),不將現金計入總成本
-                // pSum.unrealizedTWD 保持為0,現金沒有損益
+                // 現金成本應等於現金價值（本金計入成本），否則損益計算會將現金誤計為獲利
+                pSum.costTWD = totalCash; 
+                // pSum.unrealizedTWD 保持為 0, 現金沒有損益
 
                 // 2. Create Cash Holding
                 const cashTxHistory = raw.filter(tx => tx.Type === 'Deposit' || tx.Type === 'Withdraw');
