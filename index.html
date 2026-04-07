@@ -37,6 +37,214 @@
             --bottom-nav-height: 70px;
         }
 
+        /* ============================================================
+           文房模式 (Zen / Stealth Theme) — 中式典雅配色
+           如宣紙、墨色、硃砂，讓旁人以為你在閱讀文件
+           ============================================================ */
+        [data-theme="zen"] {
+            --bg-body: #f5f0e8;        /* 宣紙米白 */
+            --bg-sidebar: #ece5d5;     /* 老宣紙 */
+            --bg-card: #faf7f0;        /* 白宣 */
+            --bg-card-hover: #f0ead8;  /* 微黃宣 */
+            --primary: #8b3a2a;        /* 硃砂紅 */
+            --primary-glow: rgba(139, 58, 42, 0.25);
+            --accent: #4a6741;         /* 墨竹青 */
+            --text-main: #1a1208;      /* 濃墨 */
+            --text-muted: #6b5a42;     /* 半濃墨 */
+            --text-dim: #a09070;       /* 淡墨 */
+            --success: #4a6741;        /* 竹青（漲） */
+            --success-bg: rgba(74, 103, 65, 0.12);
+            --danger: #8b3a2a;         /* 硃砂（跌） */
+            --danger-bg: rgba(139, 58, 42, 0.1);
+            --border: 1px solid rgba(90, 60, 30, 0.15);
+        }
+
+        /* 文房模式：全域字型切換（排除 Font Awesome 圖示） */
+        [data-theme="zen"] *:not(.fas):not(.far):not(.fab):not(.fal):not(.fa-solid):not(.fa-regular):not(.fa-brands) {
+            font-family: 'Noto Serif TC', 'Georgia', 'Songti SC', serif !important;
+        }
+        /* 強制還原 Font Awesome 圖示字型，避免被覆蓋 */
+        [data-theme="zen"] .fas,
+        [data-theme="zen"] .far,
+        [data-theme="zen"] .fab,
+        [data-theme="zen"] .fal,
+        [data-theme="zen"] .fa-solid,
+        [data-theme="zen"] .fa-regular,
+        [data-theme="zen"] .fa-brands {
+            font-family: 'Font Awesome 6 Free', 'Font Awesome 6 Pro', 'Font Awesome 5 Free', 'FontAwesome' !important;
+        }
+
+        /* 文房模式：滾動條美化 */
+        [data-theme="zen"] ::-webkit-scrollbar-thumb {
+            background: rgba(90, 60, 30, 0.25);
+        }
+
+        /* 文房模式：sidebar 增加竹紋感 */
+        [data-theme="zen"] .sidebar {
+            background: linear-gradient(180deg, #ece5d5 0%, #e5dcc8 100%);
+            border-right: 2px solid rgba(90, 60, 30, 0.2);
+        }
+
+        /* 文房模式：nav-item active 用墨條樣式 */
+        [data-theme="zen"] .nav-item.active {
+            background: linear-gradient(90deg, rgba(139, 58, 42, 0.08), transparent);
+            color: var(--primary);
+            border-left: 3px solid var(--primary);
+        }
+
+        /* 文房模式：card 增加宣紙質感陰影 */
+        [data-theme="zen"] .card {
+            background: #faf7f0;
+            border: 1px solid rgba(90, 60, 30, 0.12);
+            box-shadow: 0 2px 12px rgba(90, 60, 30, 0.08);
+        }
+
+        /* 文房模式：form-input/select 改為淡米色背景 */
+        [data-theme="zen"] .form-input,
+        [data-theme="zen"] .form-select {
+            background: #ece5d5;
+            border: 1px solid rgba(90, 60, 30, 0.2);
+            color: #1a1208;
+        }
+
+        /* 文房模式：modal 背景 */
+        [data-theme="zen"] .modal-box,
+        [data-theme="zen"] .custom-modal-box {
+            background: #faf7f0;
+            border: 1px solid rgba(90, 60, 30, 0.15);
+        }
+
+        /* 文房模式：market badge 重新上色 */
+        [data-theme="zen"] .market-badge.tw { background: rgba(74,103,65,0.15); color: #4a6741; }
+        [data-theme="zen"] .market-badge.us { background: rgba(74,89,130,0.15); color: #4a5982; }
+        [data-theme="zen"] .market-badge.uk { background: rgba(100,60,120,0.15); color: #64407a; }
+
+        /* 文房模式：btn */
+        [data-theme="zen"] .btn {
+            background: #ece5d5;
+            border: 1px solid rgba(90, 60, 30, 0.18);
+            color: #1a1208;
+        }
+        [data-theme="zen"] .btn:hover {
+            background: #e0d8c4;
+        }
+        [data-theme="zen"] .btn.primary {
+            background: #8b3a2a;
+            color: #faf7f0;
+            border: none;
+        }
+        [data-theme="zen"] .btn.primary:hover {
+            background: #732f21;
+        }
+
+        /* 文房模式：loader */
+        [data-theme="zen"] .loader-overlay {
+            background: rgba(245, 240, 232, 0.92);
+        }
+        [data-theme="zen"] .spinner {
+            border-color: rgba(139, 58, 42, 0.2);
+            border-top-color: var(--primary);
+        }
+
+        /* 文房模式：toast */
+        [data-theme="zen"] .toast {
+            background: rgba(250, 247, 240, 0.97);
+            color: #1a1208;
+            border-color: var(--primary);
+        }
+
+        /* 文房模式：table header 底色 */
+        [data-theme="zen"] .holdings-container {
+            background: #faf7f0;
+            border: 1px solid rgba(90, 60, 30, 0.12);
+        }
+        [data-theme="zen"] .holding-item:hover {
+            background: rgba(90, 60, 30, 0.04);
+        }
+
+        /* 文房模式：sticky col bg */
+        [data-theme="zen"] .table-header > div:first-child,
+        [data-theme="zen"] .holding-item > div:first-child {
+            background: #faf7f0 !important;
+
+        }
+        [data-theme="zen"] .holding-item:hover > div:first-child {
+            background: #f0ead8 !important;
+        }
+
+        /* 文房模式：tx-badge 重新上色 */
+        [data-theme="zen"] .tx-badge.buy { background: rgba(74,103,65,0.15); color: #4a6741; }
+        [data-theme="zen"] .tx-badge.sell { background: rgba(139,58,42,0.12); color: #8b3a2a; }
+        [data-theme="zen"] .tx-badge.dividend { background: rgba(74,89,130,0.12); color: #4a5982; }
+
+        /* 文房模式：checkmark */
+        [data-theme="zen"] .checkmark {
+            background: rgba(90, 60, 30, 0.05);
+            border-color: rgba(90, 60, 30, 0.25);
+        }
+        [data-theme="zen"] .custom-checkbox input:checked + .checkmark {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+
+        /* 文房模式：mobile nav */
+        [data-theme="zen"] .mobile-nav {
+            background: rgba(245, 240, 232, 0.98);
+            border-top: 1px solid rgba(90, 60, 30, 0.15);
+        }
+        [data-theme="zen"] .m-nav-item { color: var(--text-muted); }
+        [data-theme="zen"] .m-nav-item.active { color: var(--primary); }
+
+        /* 文房模式：切換按鈕樣式 */
+        .theme-toggle-btn {
+            width: 36px;
+            height: 36px;
+            padding: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.05);
+            border: var(--border);
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        .theme-toggle-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--primary);
+            transform: scale(1.1);
+        }
+        [data-theme="zen"] .theme-toggle-btn {
+            background: rgba(90, 60, 30, 0.08);
+            border: 1px solid rgba(90, 60, 30, 0.2);
+            color: #8b3a2a;
+        }
+        [data-theme="zen"] .theme-toggle-btn:hover {
+            background: rgba(139, 58, 42, 0.12);
+        }
+
+        /* 模式切換動畫：漣漪 */
+        @keyframes zenRipple {
+            0%   { transform: scale(0); opacity: 0.5; }
+            100% { transform: scale(60); opacity: 0; }
+        }
+        .zen-ripple {
+            position: fixed;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 99999;
+            animation: zenRipple 0.55s ease-out forwards;
+        }
+        .zen-ripple.to-zen   { background: #f5f0e8; }
+        .zen-ripple.to-dark  { background: #0b0e14; }
+
+
         * {
             margin: 0;
             padding: 0;
@@ -1242,7 +1450,10 @@
             <li class="nav-item" onclick="navTo('transactions')"><i class="fas fa-history"></i> 交易紀錄</li>
         </ul>
         <div class="sidebar-footer">
-            <button class="sidebar-footer-btn" onclick="openSettings()" title="連線設定"><i class="fas fa-cog"></i></button>
+            <div style="display:flex;align-items:center;gap:10px;">
+                <button class="sidebar-footer-btn" onclick="openSettings()" title="連線設定"><i class="fas fa-cog"></i></button>
+                <button class="theme-toggle-btn" id="zen-mode-btn" onclick="toggleZenMode(event)" title="文房模式 (Alt+Z）"><i class="fas fa-leaf" id="zen-icon"></i></button>
+            </div>
         </div>
     </nav>
 
@@ -2585,7 +2796,7 @@
                 // Rate Logic
                 // If it's pure cash transaction, users often input the currency amount directly.
                 // If Market=US, input 1000 means 1000 USD.
-                let rate = market.includes('美') ? rates.USD : (market.includes('英') ? rates.GBP : 1);
+                let rate = market.includes('美') ? rates.USD : (market.includes('英') ? rates.USD : 1);
 
                 // Calculate Cash Flow in TWD
                 let amt = 0;
@@ -4236,6 +4447,57 @@
                 currentY = 0;
             });
         }
+    </script>
+
+    <script>
+        // ============================================================
+        // 文房模式 (Zen / Stealth Mode) — 主題切換邏輯
+        // ============================================================
+        const ZEN_KEY = 'ahmo-zen-mode';
+        function applyZenTheme(isZen, animate, anchorEl) {
+            const html = document.documentElement;
+            const icon = document.getElementById('zen-icon');
+
+            if (animate && anchorEl) {
+                const rect = anchorEl.getBoundingClientRect();
+                const ripple = document.createElement('div');
+                ripple.className = 'zen-ripple ' + (isZen ? 'to-zen' : 'to-dark');
+                ripple.style.left = (rect.left + rect.width / 2 - 15) + 'px';
+                ripple.style.top  = (rect.top  + rect.height / 2 - 15) + 'px';
+                document.body.appendChild(ripple);
+                setTimeout(function(){ ripple.remove(); }, 600);
+            }
+
+            if (isZen) {
+                html.setAttribute('data-theme', 'zen');
+                if (icon) icon.className = 'fas fa-moon';
+            } else {
+                html.removeAttribute('data-theme');
+                if (icon) icon.className = 'fas fa-leaf';
+            }
+        }
+
+        function toggleZenMode(event) {
+            var isZen = document.documentElement.getAttribute('data-theme') !== 'zen';
+            localStorage.setItem(ZEN_KEY, isZen ? '1' : '0');
+            var btn = document.getElementById('zen-mode-btn');
+            applyZenTheme(isZen, true, btn);
+            if (typeof showToast === 'function') showToast(isZen ? '\uD83C\uDF43 文房模式已開啟' : '\uD83D\uDCBB 原始模式已還原');
+        }
+
+        // 初始化：從 localStorage 恢復主題
+        (function initZenMode() {
+            var saved = localStorage.getItem(ZEN_KEY);
+            if (saved === '1') applyZenTheme(true, false, null);
+        })();
+
+        // Alt+Z 快捷鍵
+        document.addEventListener('keydown', function(e) {
+            if (e.altKey && (e.key === 'z' || e.key === 'Z')) {
+                e.preventDefault();
+                toggleZenMode(e);
+            }
+        });
     </script>
 </body>
 
