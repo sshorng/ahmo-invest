@@ -227,40 +227,57 @@
             background: rgba(139, 58, 42, 0.12);
         }
 
-        /* 手機版浮動切換按鈕 */
-        .mobile-theme-toggle {
+        /* 手機版頂部工具列 */
+        .mobile-header {
             display: none;
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 1001;
-            width: 44px;
-            height: 44px;
-            background: var(--bg-card);
-            border: var(--border);
+            padding: 12px 20px;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--bg-sidebar);
+            border-bottom: var(--border);
+            margin-bottom: 0;
+        }
+
+        .mobile-header .m-logo {
+            font-size: 1.2rem;
+            font-weight: 700;
+            background: linear-gradient(to right, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .mobile-header .m-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        /* 複用主題按鈕樣式 */
+        .m-theme-btn {
+            width: 38px;
+            height: 38px;
             border-radius: 50%;
+            background: rgba(255, 255, 255, 0.05);
+            border: var(--border);
             color: var(--text-muted);
+            display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
             cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-            backdrop-filter: blur(10px);
         }
 
-        .mobile-theme-toggle:hover {
-            transform: scale(1.1);
-            color: var(--primary);
-        }
-
-        [data-theme="zen"] .mobile-theme-toggle {
-            background: rgba(250, 247, 240, 0.9);
+        [data-theme="zen"] .m-theme-btn {
+            background: rgba(90, 60, 30, 0.08);
             border: 1px solid rgba(90, 60, 30, 0.2);
             color: #8b3a2a;
         }
 
         @media (max-width: 768px) {
-            .mobile-theme-toggle {
+            .mobile-header {
                 display: flex;
             }
         }
@@ -1475,10 +1492,6 @@
         <div style="color:var(--text-main); font-size:0.85rem; font-weight:500;">載入中...</div>
     </div>
 
-    <!-- 手機版專用配色切換按鈕 -->
-    <div class="mobile-theme-toggle" onclick="toggleZenMode(event)" title="切換配色模式">
-        <i class="fas fa-leaf" id="zen-icon-mobile"></i>
-    </div>
     <nav class="sidebar">
         <div class="logo">
             <a id="spreadsheet-logo-link" href="#" target="_blank"
@@ -1501,6 +1514,19 @@
     </nav>
 
     <main class="main-content">
+        <!-- 手機版頂部導覽列 -->
+        <header class="mobile-header">
+            <div class="m-logo"><i class="fas fa-layer-group"></i> Ahmo Invest</div>
+            <div class="m-actions">
+                <button class="m-theme-btn" id="zen-mode-btn-mobile" onclick="toggleZenMode(event)" title="切換配色">
+                    <i class="fas fa-leaf" id="zen-icon-mobile"></i>
+                </button>
+                <button class="m-theme-btn" onclick="openSettings()" title="設定">
+                    <i class="fas fa-cog"></i>
+                </button>
+            </div>
+        </header>
+
         <!-- Pull to Refresh Indicator -->
         <div id="ptr-indicator" class="ptr-container">
             <div class="ptr-icon">
@@ -4528,7 +4554,7 @@
             var isZen = document.documentElement.getAttribute('data-theme') !== 'zen';
             localStorage.setItem(ZEN_KEY, isZen ? '1' : '0');
             // 使用 event.currentTarget 作為動畫錨點，如果沒有則回退到桌機版按鈕
-            var btn = (event && event.currentTarget) ? event.currentTarget : document.getElementById('zen-mode-btn');
+            var btn = (event && event.currentTarget) ? event.currentTarget : (document.getElementById('zen-mode-btn-mobile') || document.getElementById('zen-mode-btn'));
             applyZenTheme(isZen, true, btn);
             if (typeof showToast === 'function') showToast(isZen ? '\uD83C\uDF43 文房模式已開啟' : '\uD83D\uDCBB 原始模式已還原');
         }
