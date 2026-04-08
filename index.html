@@ -227,6 +227,44 @@
             background: rgba(139, 58, 42, 0.12);
         }
 
+        /* 手機版浮動切換按鈕 */
+        .mobile-theme-toggle {
+            display: none;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1001;
+            width: 44px;
+            height: 44px;
+            background: var(--bg-card);
+            border: var(--border);
+            border-radius: 50%;
+            color: var(--text-muted);
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            backdrop-filter: blur(10px);
+        }
+
+        .mobile-theme-toggle:hover {
+            transform: scale(1.1);
+            color: var(--primary);
+        }
+
+        [data-theme="zen"] .mobile-theme-toggle {
+            background: rgba(250, 247, 240, 0.9);
+            border: 1px solid rgba(90, 60, 30, 0.2);
+            color: #8b3a2a;
+        }
+
+        @media (max-width: 768px) {
+            .mobile-theme-toggle {
+                display: flex;
+            }
+        }
+
         /* 模式切換動畫：漣漪 */
         @keyframes zenRipple {
             0%   { transform: scale(0); opacity: 0.5; }
@@ -1435,6 +1473,11 @@
     <div class="loader-overlay" id="loader">
         <div class="spinner"></div>
         <div style="color:var(--text-main); font-size:0.85rem; font-weight:500;">載入中...</div>
+    </div>
+
+    <!-- 手機版專用配色切換按鈕 -->
+    <div class="mobile-theme-toggle" onclick="toggleZenMode(event)" title="切換配色模式">
+        <i class="fas fa-leaf" id="zen-icon-mobile"></i>
     </div>
     <nav class="sidebar">
         <div class="logo">
@@ -4456,7 +4499,7 @@
         const ZEN_KEY = 'ahmo-zen-mode';
         function applyZenTheme(isZen, animate, anchorEl) {
             const html = document.documentElement;
-            const icon = document.getElementById('zen-icon');
+            const icons = document.querySelectorAll('#zen-icon, #zen-icon-mobile');
 
             if (animate && anchorEl) {
                 const rect = anchorEl.getBoundingClientRect();
@@ -4470,17 +4513,22 @@
 
             if (isZen) {
                 html.setAttribute('data-theme', 'zen');
-                if (icon) icon.className = 'fas fa-moon';
+                icons.forEach(icon => {
+                    if (icon) icon.className = 'fas fa-moon';
+                });
             } else {
                 html.removeAttribute('data-theme');
-                if (icon) icon.className = 'fas fa-leaf';
+                icons.forEach(icon => {
+                    if (icon) icon.className = 'fas fa-leaf';
+                });
             }
         }
 
         function toggleZenMode(event) {
             var isZen = document.documentElement.getAttribute('data-theme') !== 'zen';
             localStorage.setItem(ZEN_KEY, isZen ? '1' : '0');
-            var btn = document.getElementById('zen-mode-btn');
+            // 使用 event.currentTarget 作為動畫錨點，如果沒有則回退到桌機版按鈕
+            var btn = (event && event.currentTarget) ? event.currentTarget : document.getElementById('zen-mode-btn');
             applyZenTheme(isZen, true, btn);
             if (typeof showToast === 'function') showToast(isZen ? '\uD83C\uDF43 文房模式已開啟' : '\uD83D\uDCBB 原始模式已還原');
         }
