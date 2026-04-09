@@ -2782,7 +2782,10 @@
                 el.classList.remove('twd-active');
             }
         }
-        function isTWStock(market) { return market && (market.includes('台') || market.includes('TW')); }
+        function isTWStock(market, ticker = '') { 
+            return (market && (market.includes('台') || market.includes('TW'))) || 
+                   (ticker && (ticker.startsWith('00') || ticker.startsWith('TPE:') || /^\d{4,6}/.test(ticker)));
+        }
         function fmtByMarket(n, market, isPrice = false) { return isTWStock(market) ? fmtTWD(n, isPrice) : fmtUSD(n); }
 
         function calculateMetrics() {
@@ -2804,7 +2807,7 @@
                 const H = holdingsMap[key];
                 H.history.push(tx);
                 const shares = parseFloat(tx.Shares), price = parseFloat(tx.Price), fee = parseFloat(tx.Fee) || 0;
-                let rate = market.includes('美') ? rates.USD : (market.includes('英') ? rates.USD : 1);
+                let rate = isTWStock(market, t) ? 1 : (market.includes('英') ? rates.USD : rates.USD);
                 const d = new Date(tx.Date), mKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 
                 if (!portfolioSummary[portfolio]) portfolioSummary[portfolio] = { name: portfolio, costTWD: 0, valueTWD: 0, realized: 0, stocks: new Set(), includeInTotal: psMap[portfolio]?.includeInTotal !== false, description: psMap[portfolio]?.description || '' };
@@ -2822,9 +2825,16 @@
 
             metrics.holdings = Object.values(holdingsMap).map(h => {
                 const q = quotes[h.ticker] || { price: 0, name: h.ticker, change: 0 };
-                const curPrice = parseFloat(q.price) || 0;
-                const change = parseFloat(q.change) || 0;
-                const rate = h.market.includes('美') ? rates.USD : (h.market.includes('英') ? rates.USD : 1);
+                let curPrice = parseFloat(q.price) || 0;
+                let change = parseFloat(q.change) || 0;
+                
+                // --- 智能拆分修正：如果標的是 00631L 且單價 > 400，則除以 22 ---
+                if (h.ticker.includes('00631') && curPrice > 400) {
+                    curPrice = curPrice / 22;
+                    change = change / 22;
+                }
+                
+                const rate = isTWStock(h.market, h.ticker) ? 1 : (h.market.includes('英') ? rates.USD : rates.USD);
                 const marketValLocal = h.shares * curPrice, marketValTWD = marketValLocal * rate;
                 const unrealizedTWD = marketValTWD - h.costTWD;
                 const todayChangeTWD = h.shares * change * rate; // 今日市值變化
@@ -3234,7 +3244,7 @@
             con.innerHTML = '';
             [...stocks].sort((a, b) => b.marketValTWD - a.marketValTWD).forEach(h => {
                 const rates = appData.exchangeRates || { USD: 32, GBP: 40 };
-                const rate = h.market.includes('美') ? rates.USD : (h.market.includes('英') ? rates.USD : 1);
+                const rate = isTWStock(h.market, h.ticker) ? 1 : rates.USD;
                 const curPrice = h.curPrice;
                 const unrealizedLocal = rate > 0 ? h.unrealizedTWD / rate : 0;
                 const costLocal = h.shares > 0 ? h.costTWD / rate : 0;
@@ -3309,7 +3319,7 @@
             if (!h) return;
 
             const rates = appData.exchangeRates || { USD: 32, GBP: 40 };
-            const rate = h.market.includes('美') ? rates.USD : (h.market.includes('英') ? rates.USD : 1);
+            const rate = isTWStock(h.market, h.ticker) ? 1 : rates.USD;
 
             const bcContainer = document.querySelector('#stock-detail .breadcrumb');
             if (fromSource === 'transactions') {
