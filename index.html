@@ -2807,20 +2807,37 @@
                 const H = holdingsMap[key];
                 H.history.push(tx);
                 const shares = parseFloat(tx.Shares), price = parseFloat(tx.Price), fee = parseFloat(tx.Fee) || 0;
-                let rate = isTWStock(market, t) ? 1 : (market.includes('英') ? rates.USD : rates.USD);
+                const totalTWD = parseFloat(tx.TotalTWD) || 0;
                 const d = new Date(tx.Date), mKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+
+                // 用 TotalTWD 推導「當下成交匯率」，避免今日匯率回算歷史成本造成漂移
+                // 與後端 takeSnapshot v3 邏輯一致
+                const grossLocal = (shares * price) + fee;
+                let impliedRate;
+                if (grossLocal > 0 && totalTWD > 0) {
+                    impliedRate = totalTWD / grossLocal;
+                } else {
+                    // fallback：TotalTWD 不可用（舊資料）才用今日匯率
+                    impliedRate = isTWStock(market, t) ? 1 : rates.USD;
+                }
 
                 if (!portfolioSummary[portfolio]) portfolioSummary[portfolio] = { name: portfolio, costTWD: 0, valueTWD: 0, realized: 0, stocks: new Set(), includeInTotal: psMap[portfolio]?.includeInTotal !== false, description: psMap[portfolio]?.description || '' };
                 portfolioSummary[portfolio].stocks.add(t);
 
-                if (tx.Type === 'Buy') { H.shares += shares; H.costLocal += (shares * price) + fee; H.costTWD += ((shares * price) + fee) * rate; }
-                else if (tx.Type === 'Sell') {
+                if (tx.Type === 'Buy') {
+                    H.shares += shares;
+                    H.costLocal += grossLocal;
+                    H.costTWD += grossLocal * impliedRate; // 用交易當時匯率計算成本，不受今日匯率影響
+                } else if (tx.Type === 'Sell') {
                     const avgL = H.shares > 0 ? H.costLocal / H.shares : 0, avgT = H.shares > 0 ? H.costTWD / H.shares : 0;
                     const cogsL = avgL * shares, cogsT = avgT * shares;
                     H.shares -= shares; H.costLocal -= cogsL; H.costTWD -= cogsT;
-                    const gain = ((shares * price) - fee) * rate - cogsT;
+                    const gain = ((shares * price) - fee) * impliedRate - cogsT;
                     H.realized += gain; if (!realizedLog[mKey]) realizedLog[mKey] = 0; realizedLog[mKey] += gain;
-                } else if (tx.Type === 'Dividend') { const gain = (price - fee) * rate; H.realized += gain; if (!realizedLog[mKey]) realizedLog[mKey] = 0; realizedLog[mKey] += gain; }
+                } else if (tx.Type === 'Dividend') {
+                    const gain = (price - fee) * impliedRate;
+                    H.realized += gain; if (!realizedLog[mKey]) realizedLog[mKey] = 0; realizedLog[mKey] += gain;
+                }
             });
 
             metrics.holdings = Object.values(holdingsMap).map(h => {
