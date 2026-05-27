@@ -2867,15 +2867,9 @@
             metrics.portfolioSummary = portfolioSummary;
 
             // --- CASH MANAGEMENT (Big Reservoir) ---
-            // 修正 (2025-02-03): 使用後端快照數據作為基準，以消除歷史匯率與今日匯率的計算差異
-            let totalCash = appData.latestSnapshotCash || 0;
+            // 修正 (2026-05-27 重構): 不再使用歷史快照作為地基，而是直接從所有交易全量計算現金餘額，以實現 100% 所見即所得 (WYSIWYG)
+            let totalCash = 0;
             let netDeposit = 0;
-
-            // 如果有快照，只計算快照日期之後的新交易
-            const snapDate = appData.latestSnapshotDate ? new Date(appData.latestSnapshotDate) : null;
-            // 如果快照日期無效（例如1970），則不使用基準，從頭計算
-            const useSnapshotBase = (totalCash > 0 && snapDate && snapDate.getFullYear() > 2000);
-            if (!useSnapshotBase) totalCash = 0;
 
             raw.forEach(tx => {
                 const type = tx.Type;
@@ -2883,12 +2877,11 @@
                 const shares = parseFloat(tx.Shares) || 0;
                 const price = parseFloat(tx.Price) || 0;
                 const fee = parseFloat(tx.Fee) || 0;
-                const txDate = new Date(tx.Date);
 
                 // Rate Logic (使用者指定：英股與美股均使用美金匯率)
                 let rate = isTWStock(market, tx.Ticker) ? 1 : rates.USD;
 
-                // Calculate Cash Flow in TWD (校準：優先使用 TotalTWD)
+                // Calculate Cash Flow in TWD (優先使用 TotalTWD，確保鎖定交易當時的匯率)
                 let totalTWD = parseFloat(tx.TotalTWD) || 0;
                 if (totalTWD === 0) {
                     if (type === 'Deposit' || type === 'Withdraw') totalTWD = (shares * price) * rate;
@@ -2899,30 +2892,17 @@
 
                 if (type === 'Deposit') {
                     netDeposit += totalTWD;
+                    totalCash += totalTWD;
                 } else if (type === 'Withdraw') {
                     netDeposit -= totalTWD;
+                    totalCash -= totalTWD;
+                } else if (type === 'Buy') {
+                    totalCash -= totalTWD;
+                } else if (type === 'Sell') {
+                    totalCash += totalTWD;
+                } else if (type === 'Dividend') {
+                    totalCash += totalTWD;
                 }
-
-                // 判斷是否為「新交易」
-                let isNewTx = true;
-                if (useSnapshotBase) {
-                    const txDateStr = tx.Date.substring(0, 10);
-                    // 修正時區 Bug：避免 toISOString() 轉回 UTC 導致台北時間 00:00 減去 8 小時退回前一天
-                    const snapDateStr = snapDate.getFullYear() + '-' + 
-                                        String(snapDate.getMonth() + 1).padStart(2, '0') + '-' + 
-                                        String(snapDate.getDate()).padStart(2, '0');
-                    if (txDateStr <= snapDateStr) isNewTx = false;
-                }
-
-                if (isNewTx) {
-                    if (type === 'Deposit') totalCash += totalTWD;
-                    else if (type === 'Withdraw') totalCash -= totalTWD;
-                    else if (type === 'Buy') totalCash -= totalTWD;
-                    else if (type === 'Sell') totalCash += totalTWD;
-                    else if (type === 'Dividend') totalCash += totalTWD;
-                }
-
-                // 如果不使用快照，isNewTx always true
             });
 
             metrics.cashBalance = totalCash;
@@ -2930,9 +2910,9 @@
 
             // --- INJECT SYNTHETIC CASH HOLDING ---
             // This ensures the "Cash" portfolio shows the data
-            // 判斷是否顯示現金：有明確的入金/出金紀錄，或者是基於快照且快照有現金
+            // 判斷是否顯示現金：有明確的入金/出金紀錄，或者計算出的現金餘額不為 0
             const hasExplicitCashTx = raw.some(tx => tx.Type === 'Deposit' || tx.Type === 'Withdraw');
-            const showCash = hasExplicitCashTx || (useSnapshotBase && appData.latestSnapshotCash !== 0);
+            const showCash = hasExplicitCashTx || totalCash !== 0;
             metrics.showCash = showCash;
 
             // --- INJECT SYNTHETIC CASH HOLDING ---
