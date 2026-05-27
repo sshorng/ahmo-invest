@@ -2845,13 +2845,9 @@
                 let curPrice = parseFloat(q.price) || 0;
                 let change = parseFloat(q.change) || 0;
                 
-                // --- 智能拆分修正：如果標的是 00631L 且單價 > 400，則除以 22 ---
-                if (h.ticker.includes('00631') && curPrice > 400) {
-                    curPrice = curPrice / 22;
-                    change = change / 22;
-                }
+                // 使用者指定：00631L 拆分以 2026-03-31 為準，今日已過拆分日，不進行價格修正。
                 
-                const rate = isTWStock(h.market, h.ticker) ? 1 : (h.market.includes('英') ? rates.USD : rates.USD);
+                const rate = isTWStock(h.market, h.ticker) ? 1 : rates.USD;
                 const marketValLocal = h.shares * curPrice, marketValTWD = marketValLocal * rate;
                 const unrealizedTWD = marketValTWD - h.costTWD;
                 const todayChangeTWD = h.shares * change * rate; // 今日市值變化
@@ -2889,36 +2885,41 @@
                 const fee = parseFloat(tx.Fee) || 0;
                 const txDate = new Date(tx.Date);
 
-                // Rate Logic
-                // If it's pure cash transaction, users often input the currency amount directly.
-                // If Market=US, input 1000 means 1000 USD.
-                let rate = market.includes('美') ? rates.USD : (market.includes('英') ? rates.USD : 1);
+                // Rate Logic (使用者指定：英股與美股均使用美金匯率)
+                let rate = isTWStock(market, tx.Ticker) ? 1 : rates.USD;
 
-                // Calculate Cash Flow in TWD
-                let amt = 0;
+                // Calculate Cash Flow in TWD (校準：優先使用 TotalTWD)
+                let totalTWD = parseFloat(tx.TotalTWD) || 0;
+                if (totalTWD === 0) {
+                    if (type === 'Deposit' || type === 'Withdraw') totalTWD = (shares * price) * rate;
+                    else if (type === 'Buy') totalTWD = ((shares * price) + fee) * rate;
+                    else if (type === 'Sell') totalTWD = ((shares * price) - fee) * rate;
+                    else if (type === 'Dividend') totalTWD = (price - fee) * rate;
+                }
+
                 if (type === 'Deposit') {
-                    amt = (shares * price * rate);
-                    netDeposit += amt;
+                    netDeposit += totalTWD;
                 } else if (type === 'Withdraw') {
-                    amt = (shares * price * rate);
-                    netDeposit -= amt;
+                    netDeposit -= totalTWD;
                 }
 
                 // 判斷是否為「新交易」
-                // 修正：使用日期字串比較以正確排除快照日當天及其之前的交易
                 let isNewTx = true;
                 if (useSnapshotBase) {
                     const txDateStr = tx.Date.substring(0, 10);
-                    const snapDateStr = snapDate.toISOString().substring(0, 10);
+                    // 修正時區 Bug：避免 toISOString() 轉回 UTC 導致台北時間 00:00 減去 8 小時退回前一天
+                    const snapDateStr = snapDate.getFullYear() + '-' + 
+                                        String(snapDate.getMonth() + 1).padStart(2, '0') + '-' + 
+                                        String(snapDate.getDate()).padStart(2, '0');
                     if (txDateStr <= snapDateStr) isNewTx = false;
                 }
 
                 if (isNewTx) {
-                    if (type === 'Deposit') totalCash += amt;
-                    else if (type === 'Withdraw') totalCash -= amt;
-                    else if (type === 'Buy') totalCash -= ((shares * price) + fee) * rate;
-                    else if (type === 'Sell') totalCash += ((shares * price) - fee) * rate;
-                    else if (type === 'Dividend') totalCash += (price - fee) * rate;
+                    if (type === 'Deposit') totalCash += totalTWD;
+                    else if (type === 'Withdraw') totalCash -= totalTWD;
+                    else if (type === 'Buy') totalCash -= totalTWD;
+                    else if (type === 'Sell') totalCash += totalTWD;
+                    else if (type === 'Dividend') totalCash += totalTWD;
                 }
 
                 // 如果不使用快照，isNewTx always true
@@ -3719,12 +3720,11 @@
             let totalCost = 0;
             const portfolios = {};
 
+            // 使用者指定：快照應存入「全量」數據，前端顯示時再扣除
             if (metrics && metrics.portfolioSummary) {
                 Object.values(metrics.portfolioSummary).forEach(p => {
-                    if (p.includeInTotal) {
-                        totalVal += p.valueTWD || 0;
-                        totalCost += p.costTWD || 0;
-                    }
+                    totalVal += p.valueTWD || 0;
+                    totalCost += p.costTWD || 0;
                     portfolios[p.name] = {
                         name: p.name,
                         valueTWD: p.valueTWD || 0,
@@ -3842,28 +3842,29 @@
                 filtered = filtered.filter(s => new Date(s.date) >= cutoff);
             }
 
-            // === 即時校準：注入今日虛擬數據點 ===
+            // === 即時校準：強制以即時 metrics 取代今日快照 ===
+            // 說明：當天入帳可能觸發後端寫入不準確的當日快照（例如組合資料不完整）。
+            // 不論今日是否已有快照，一律移除後以即時 metrics 重新注入，確保圖表準確。
             if (metrics && metrics.portfolioSummary) {
                 const todayStr = new Date().toISOString().substring(0, 10);
-                const hasToday = filtered.some(s => s.date === todayStr);
-                if (!hasToday) {
-                    // 從即時 metrics 建立今日數據點
-                    const todayPortfolios = {};
-                    Object.values(metrics.portfolioSummary).forEach(p => {
-                        todayPortfolios[p.name] = { name: p.name, valueTWD: p.valueTWD || 0, costTWD: p.costTWD || 0 };
-                    });
-                    let todayTotal = 0, todayCost = 0;
-                    Object.values(metrics.portfolioSummary).forEach(p => {
-                        if (p.includeInTotal) { todayTotal += p.valueTWD || 0; todayCost += p.costTWD || 0; }
-                    });
-                    filtered.push({
-                        date: todayStr,
-                        totalValue: todayTotal,
-                        totalCost: todayCost,
-                        totalPL: todayTotal - todayCost,
-                        portfolios: todayPortfolios
-                    });
-                }
+                // 強制移除今日任何舊快照，改用即時 metrics
+                filtered = filtered.filter(s => s.date !== todayStr);
+
+                const todayPortfolios = {};
+                let todayTotal = 0, todayCost = 0;
+                Object.values(metrics.portfolioSummary).forEach(p => {
+                    todayPortfolios[p.name] = { name: p.name, valueTWD: p.valueTWD || 0, costTWD: p.costTWD || 0 };
+                    // 虛擬點總額一律存入全量，與快照 row 邏輯一致
+                    todayTotal += p.valueTWD || 0; 
+                    todayCost += p.costTWD || 0;
+                });
+                filtered.push({
+                    date: todayStr,
+                    totalValue: todayTotal,
+                    totalCost: todayCost,
+                    totalPL: todayTotal - todayCost,
+                    portfolios: todayPortfolios
+                });
             }
 
             if (filtered.length === 0) {
